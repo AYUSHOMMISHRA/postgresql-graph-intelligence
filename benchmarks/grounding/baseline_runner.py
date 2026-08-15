@@ -72,14 +72,20 @@ def compute_metrics(cases: List[Dict[str, Any]]) -> Dict[str, Any]:
         "unsupported_claim_escape_rate": rate(unsupported, lambda p: p is True),
         "contradicted_claim_escape_rate": rate(contradicted, lambda p: p is True),
         "supported_claim_retention_rate": rate(supported, lambda p: p is True),
+        # The complement of supported_claim_retention_rate, reported under
+        # its own name (see gates.py) since "over-cautious" and
+        # "under-cautious" are different failure modes to disclose
+        # separately even though they're numerically tied together here.
+        "incorrect_abstention_rate": rate(supported, lambda p: p is False),
         "unknown_citation_rejection_rate": rate(unknown_citation_cases, lambda p: p is False),
         # Not applicable to a citation-existence-only check: it never looks
-        # at quote text or represents its own failure as anything but a
-        # binary grounded/not-grounded, so these two gates have nothing to
-        # measure yet -- reported as None (not 0 or 1) so they aren't
-        # mistaken for a pass or fail.
+        # at quote text, represents its own failure as anything but a
+        # binary grounded/not-grounded, or has been compared against a
+        # reconciled human answer key yet -- reported as None (not 0 or 1)
+        # so they aren't mistaken for a pass or fail.
         "fabricated_quote_rejection_rate": None,
         "verifier_failure_safely_represented_rate": None,
+        "human_verifier_agreement_rate": None,
     }
 
     by_category: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"n": 0, "escaped": 0})

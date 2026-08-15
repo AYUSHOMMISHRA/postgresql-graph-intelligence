@@ -1,0 +1,126 @@
+{
+  "dataset_version": "grounding-fabrication-fixtures-v1-candidate",
+  "fixture_count": 20,
+  "fixtures": [
+    {
+      "id": "paraphrase-not-quote-001",
+      "chunk_content": "checkout-service-001 depends on auth-service-001 for session validation.",
+      "real_quote": "checkout-service-001 depends on auth-service-001",
+      "fabricated_quote": "auth-service-001 is a dependency of checkout-service-001"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-001",
+      "chunk_content": "checkout-service-001 depends on auth-service-001 for session validation.",
+      "real_quote": "checkout-service-001 depends on auth-service-001 for session validation",
+      "fabricated_quote": "checkout-service-001 depends on auth-service-001 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-002",
+      "chunk_content": "checkout-service-002 depends on auth-service-002 for session validation.",
+      "real_quote": "checkout-service-002 depends on auth-service-002",
+      "fabricated_quote": "auth-service-002 is a dependency of checkout-service-002"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-002",
+      "chunk_content": "checkout-service-002 depends on auth-service-002 for session validation.",
+      "real_quote": "checkout-service-002 depends on auth-service-002 for session validation",
+      "fabricated_quote": "checkout-service-002 depends on auth-service-002 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-003",
+      "chunk_content": "checkout-service-003 depends on auth-service-003 for session validation.",
+      "real_quote": "checkout-service-003 depends on auth-service-003",
+      "fabricated_quote": "auth-service-003 is a dependency of checkout-service-003"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-003",
+      "chunk_content": "checkout-service-003 depends on auth-service-003 for session validation.",
+      "real_quote": "checkout-service-003 depends on auth-service-003 for session validation",
+      "fabricated_quote": "checkout-service-003 depends on auth-service-003 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-004",
+      "chunk_content": "checkout-service-004 depends on auth-service-004 for session validation.",
+      "real_quote": "checkout-service-004 depends on auth-service-004",
+      "fabricated_quote": "auth-service-004 is a dependency of checkout-service-004"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-004",
+      "chunk_content": "checkout-service-004 depends on auth-service-004 for session validation.",
+      "real_quote": "checkout-service-004 depends on auth-service-004 for session validation",
+      "fabricated_quote": "checkout-service-004 depends on auth-service-004 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-005",
+      "chunk_content": "checkout-service-005 depends on auth-service-005 for session validation.",
+      "real_quote": "checkout-service-005 depends on auth-service-005",
+      "fabricated_quote": "auth-service-005 is a dependency of checkout-service-005"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-005",
+      "chunk_content": "checkout-service-005 depends on auth-service-005 for session validation.",
+      "real_quote": "checkout-service-005 depends on auth-service-005 for session validation",
+      "fabricated_quote": "checkout-service-005 depends on auth-service-005 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-006",
+      "chunk_content": "checkout-service-006 depends on auth-service-006 for session validation.",
+      "real_quote": "checkout-service-006 depends on auth-service-006",
+      "fabricated_quote": "auth-service-006 is a dependency of checkout-service-006"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-006",
+      "chunk_content": "checkout-service-006 depends on auth-service-006 for session validation.",
+      "real_quote": "checkout-service-006 depends on auth-service-006 for session validation",
+      "fabricated_quote": "checkout-service-006 depends on auth-service-006 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-007",
+      "chunk_content": "checkout-service-007 depends on auth-service-007 for session validation.",
+      "real_quote": "checkout-service-007 depends on auth-service-007",
+      "fabricated_quote": "auth-service-007 is a dependency of checkout-service-007"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-007",
+      "chunk_content": "checkout-service-007 depends on auth-service-007 for session validation.",
+      "real_quote": "checkout-service-007 depends on auth-service-007 for session validation",
+      "fabricated_quote": "checkout-service-007 depends on auth-service-007 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-008",
+      "chunk_content": "checkout-service-008 depends on auth-service-008 for session validation.",
+      "real_quote": "checkout-service-008 depends on auth-service-008",
+      "fabricated_quote": "auth-service-008 is a dependency of checkout-service-008"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-008",
+      "chunk_content": "checkout-service-008 depends on auth-service-008 for session validation.",
+      "real_quote": "checkout-service-008 depends on auth-service-008 for session validation",
+      "fabricated_quote": "checkout-service-008 depends on auth-service-008 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-009",
+      "chunk_content": "checkout-service-009 depends on auth-service-009 for session validation.",
+      "real_quote": "checkout-service-009 depends on auth-service-009",
+      "fabricated_quote": "auth-service-009 is a dependency of checkout-service-009"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-009",
+      "chunk_content": "checkout-service-009 depends on auth-service-009 for session validation.",
+      "real_quote": "checkout-service-009 depends on auth-service-009 for session validation",
+      "fabricated_quote": "checkout-service-009 depends on auth-service-009 for 99.9% of session validation"
+    },
+    {
+      "id": "paraphrase-not-quote-010",
+      "chunk_content": "checkout-service-010 depends on auth-service-010 for session validation.",
+      "real_quote": "checkout-service-010 depends on auth-service-010",
+      "fabricated_quote": "auth-service-010 is a dependency of checkout-service-010"
+    },
+    {
+      "id": "fabricated-detail-not-in-chunk-010",
+      "chunk_content": "checkout-service-010 depends on auth-service-010 for session validation.",
+      "real_quote": "checkout-service-010 depends on auth-service-010 for session validation",
+      "fabricated_quote": "checkout-service-010 depends on auth-service-010 for 99.9% of session validation"
+    }
+  ]
+}

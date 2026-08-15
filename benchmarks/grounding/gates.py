@@ -35,6 +35,11 @@ RELEASE_2_GATES = [
          "the more dangerous failure mode (confidently wrong) than merely insufficient."),
     Gate("supported_claim_retention_rate", ">=", 0.85,
          "Fraction of genuinely supported claims a verifier still accepts (not over-conservative)."),
+    Gate("incorrect_abstention_rate", "<=", 0.15,
+         "Fraction of genuinely supported claims a verifier incorrectly abstains on -- the "
+         "complement of supported_claim_retention_rate, reported as its own gate since "
+         "over-caution (abstaining on good evidence) and under-caution (accepting bad evidence) "
+         "are different failure modes a verifier can trade off against each other."),
     Gate("unknown_citation_rejection_rate", ">=", 1.00,
          "Fraction of claims citing evidence outside the retrieved pool that are correctly rejected."),
     Gate("fabricated_quote_rejection_rate", ">=", 1.00,
@@ -44,13 +49,16 @@ RELEASE_2_GATES = [
     Gate("verifier_failure_safely_represented_rate", ">=", 1.00,
          "Fraction of verifier-unavailable/error cases that report a distinct failure status "
          "rather than silently falling back to 'grounded'. N/A for the citation-only baseline."),
+    Gate("human_verifier_agreement_rate", ">=", 0.90,
+         "Fraction of sealed-split cases where the verifier's verdict matches the reconciled "
+         "human answer key. N/A until the sealed split has been through independent human "
+         "review per LABELING.md -- see reconcile_reviews.py."),
 ]
 
 # Metrics that are measured and disclosed, not gated with a pass/fail
 # threshold (cost and latency trade off against the gates above; a gate here
 # would be an arbitrary target, not evidence of a bug).
 DISCLOSED_METRICS = [
-    "human_verifier_agreement_rate",
     "p50_latency_ms",
     "p95_latency_ms",
     "added_cost_per_answer_usd",

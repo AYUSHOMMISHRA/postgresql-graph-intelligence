@@ -14,14 +14,18 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-DATASET_VERSION = "grounding-benchmark-v0-seed"
-INSTANCES_PER_CATEGORY = 7
+DATASET_VERSION = "grounding-benchmark-v1-candidate"
+INSTANCES_PER_CATEGORY = 10
 OUTPUT_PATH = Path(__file__).parent / "cases.json"
 
-# 60/20/20 dev/calibration/sealed, applied per category so every category is
-# represented in every split rather than risking a category landing entirely
-# in one split by chance.
-SPLIT_CYCLE = ["dev", "dev", "dev", "dev", "calibration", "sealed", "sealed"]
+# 60/20/20 dev/calibration/sealed, applied per category (14 categories x 6/2/2
+# = 84/28/28 of 140) so every category is represented in every split rather
+# than risking a category landing entirely in one split by chance.
+SPLIT_CYCLE = [
+    "dev", "dev", "dev", "dev", "dev", "dev",
+    "calibration", "calibration",
+    "sealed", "sealed",
+]
 
 
 def _evidence(source_id: str, ordinal: int, content: str) -> Dict[str, Any]:

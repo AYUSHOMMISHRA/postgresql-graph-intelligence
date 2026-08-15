@@ -61,15 +61,29 @@ and conflating them would hide which one a verifier is actually good at.
   discipline, not superstition: the gates in `README.md` are frozen before
   the sealed run, and are not renegotiated after seeing the number.
 
-## Status of the current dataset
+## Status of the current dataset: `grounding-benchmark-v1-candidate`
 
-The cases currently in `cases.json` were constructed (not sourced from real
-incidents), with `label` assigned at construction time from an unambiguous,
-mechanically-checkable rule per category (e.g. "the relationship direction
-in the claim is swapped from the cited text" -> `contradicted`) — not by
-independent human judgment. That makes them useful for exercising a
-verifier's mechanics and producing a first baseline number, but **they do
-not yet satisfy rule 4 above** and must not be treated as a validated
-gating benchmark until at least two independent human reviewers have gone
-through the `sealed` split and confirmed agreement. Treat every current
-metric in `docs/results/` derived from this dataset as provisional.
+The cases currently in `cases.json` (140, 10 per category) were constructed
+(not sourced from real incidents), with `label` assigned at construction
+time from an unambiguous, mechanically-checkable rule per category (e.g.
+"the relationship direction in the claim is swapped from the cited text"
+-> `contradicted`) — not by independent human judgment.
+
+This is further along than a raw seed: the dataset now has committed
+integrity tests (`tests/test_grounding_benchmark.py` — exact counts, unique
+ids, valid enums, literal-substring supporting quotes, reproducibility from
+the generator) and `reviewer_packets.py` can produce blinded worksheets
+(labels/quotes/notes stripped) for the `sealed` split. That makes it
+genuinely usable for exercising a verifier's mechanics, producing a first
+baseline number, and handing reviewers a concrete starting point.
+
+**It still does not satisfy rule 4 above.** No independent human reviewer
+has labeled the `sealed` split yet — the constructed labels are the only
+labels that exist. Until two independent reviewers have gone through
+`reviewer_packets.py`'s output and `reconcile_reviews.py` shows agreement
+(see that script's docstring for the reconciliation process), this is a
+**release candidate for the sealed answer key, not the sealed answer key
+itself**. Treat every current metric in `docs/results/` derived from this
+dataset as provisional, and do not promote it to plain `grounding-benchmark-v1`
+by renaming until that review has actually happened — the version string
+itself is part of what "sealed" is supposed to mean.
