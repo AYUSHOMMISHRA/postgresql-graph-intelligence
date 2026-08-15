@@ -59,6 +59,10 @@ packages = ["postgres_graph_rag"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+markers = [
+    "live_provider: makes a real call to a live LLM provider (OpenAI/Gemini) and costs money. Excluded from routine runs by the addopts default below -- run explicitly with `pytest -m live_provider` (requires real OPENAI_API_KEY/GOOGLE_API_KEY) for a manual or nightly credentialed check.",
+]
+addopts = "-m 'not live_provider'"
 
 [tool.ruff]
 target-version = "py310"

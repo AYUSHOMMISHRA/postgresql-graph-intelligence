@@ -2,6 +2,60 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — PR 6 metric correctness fixes, live-provider test isolation
+
+A correction pass on `benchmarks/grounding/model_verifier_runner.py`
+(PR 6), found by re-auditing its own metric semantics rather than trusting
+the first-pass implementation:
+
+### Fixed
+
+- **A `verification_failed` outcome no longer pollutes escape/retention/
+  rejection rates.** Previously these cases stayed in every denominator,
+  counted as trivially "not escaped" (verdict is `None`, so `==
+  "supported"` is always false) or, worse, as a correct rejection for
+  `unknown_citation_rejection_rate` (`None != "supported"` is true). A
+  provider outage could therefore dilute an escape rate to look better
+  than the verifier's real behavior on the cases it actually completed,
+  or masquerade as a successful rejection. Incomplete cases are now
+  excluded from every such rate's denominator entirely and disclosed only
+  via `verification_failure_count`.
+  `test_outage_cannot_improve_escape_or_rejection_rates` and
+  `test_outage_cannot_improve_unknown_citation_rejection_rate` lock this
+  in.
+- **`verifier_failure_safely_represented_rate` is now only ever computed
+  from a `--simulate-failure` run.** It previously measured "fraction of
+  attempted model calls that failed" across *any* run — meaning a healthy
+  live run (near-zero real failures) would report a value near 0% and
+  wrongly fail a gate requiring ≥100%. It's `None` outside
+  `--simulate-failure`, regardless of how many real failures a live run
+  happens to hit.
+- **`fabricated_quote_rejection_rate` is now actually measured**, via a
+  new `run_fabrication_check()` using the existing
+  `fabrication_fixtures.json` pairs and a stub extractor that claims a
+  fabricated quote supports a claim — entirely offline, no real model
+  needed, since a fixture's `fabricated_quote` is guaranteed by
+  construction to never be a literal substring of its evidence.
+- **`--strict-release-gate`**: a new, stricter gate-check mode where an
+  `N/A` verdict fails the run, not just an actual `FAIL` — the previous
+  `--fail-on-gate` let required-but-unmeasured gates (human review,
+  fabricated-quote rejection) pass CI silently. `--fail-on-gate` keeps its
+  original, permissive behavior for `dev`/`calibration` iteration;
+  `--strict-release-gate` is what an actual release go/no-go check should
+  use.
+
+### Changed
+
+- `tests/test_integration.py`/`tests/test_scenarios.py` (7 tests making
+  real, billed OpenAI/Gemini calls, gated only on API keys being present
+  with no mocking) are marked `live_provider`. `pyproject.toml` now
+  defaults `addopts` to exclude that marker, so a plain `pytest`/
+  `uv run pytest` never triggers them even with real keys set in the
+  environment — run them deliberately with `pytest -m live_provider`.
+  (The existing CI workflow already listed test files explicitly and
+  never included these two, so this closes a local/ad-hoc-run gap, not a
+  CI one.)
+
 ## Unreleased — Legacy path deprecation and migration hardening
 
 Prompted by an architecture audit: `PostgresGraphRAG.for_tenant()` already

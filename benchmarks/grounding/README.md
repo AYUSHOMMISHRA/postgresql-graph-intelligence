@@ -73,16 +73,34 @@ retention that PR 4 (batched model entailment) is scoped to recover.
 ## PR 4/6 status: `model_verifier_runner.py` built and tested, no live-provider run yet
 
 `ModelEntailmentVerifier` (`../../postgres_graph_rag/model_verifier.py`) and
-its runner (`model_verifier_runner.py`) are implemented and tested — 9 +
-2 tests in `test_model_verifier.py`, 7 provider-plumbing tests in
-`test_extractor.py`, 10 runner tests in `test_model_verifier_runner.py` —
-all against a mocked or `AlwaysFailingExtractor` stand-in, never a real
-provider:
+its runner (`model_verifier_runner.py`) are implemented and tested — 9 + 2
+tests in `test_model_verifier.py`, 7 provider-plumbing tests in
+`test_extractor.py`, 15 runner tests in `test_model_verifier_runner.py` —
+all against a mocked, `AlwaysFailingExtractor`, or fabrication-check stub,
+never a real provider:
 
 ```bash
-# No credentials needed -- measures verifier_failure_safely_represented_rate
+# No credentials needed. Measures verifier_failure_safely_represented_rate
+# (only ever computed from this exercise, never a live run's incidental
+# failures) and fabricated_quote_rejection_rate (from fabrication_fixtures.json,
+# measured on every run, live or simulated).
 python -m benchmarks.grounding.model_verifier_runner --simulate-failure --split sealed
 ```
+
+A `verification_failed` outcome (provider error/timeout/malformed response)
+is treated as an *incomplete* result for that case — excluded from every
+escape/retention/rejection rate's denominator, never counted as either an
+acceptance or a rejection, and disclosed via `verification_failure_count`.
+Folding it into a rate (the original bug here) let a provider outage look
+identical to, or better than, a correct rejection —
+`test_outage_cannot_improve_escape_or_rejection_rates` and
+`test_outage_cannot_improve_unknown_citation_rejection_rate` lock this in.
+
+Two gate-checking modes: `--fail-on-gate` (permissive — only an actual FAIL
+blocks, for `dev`/`calibration` iteration) and `--strict-release-gate` (an
+N/A verdict blocks too — required for the actual release go/no-go
+decision, since a required gate that was never measured must not silently
+pass CI).
 
 What's still missing before this PR's own before/after result can be
 recorded the way PR 3's was: an actual run against a real OpenAI or Gemini
@@ -91,7 +109,7 @@ doesn't have:
 
 ```bash
 OPENAI_API_KEY=... python -m benchmarks.grounding.model_verifier_runner \
-    --provider openai --split sealed --fail-on-gate \
+    --provider openai --split sealed --strict-release-gate \
     --cost-per-1k-prompt-tokens <rate> --cost-per-1k-completion-tokens <rate> \
     --markdown-out docs/results/grounding-benchmark-model-verifier.md
 ```
@@ -100,12 +118,11 @@ That run — `deterministic_runner.py`'s result vs. this one against the
 sealed split, with a real `LLMExtractor` — is the natural follow-up once
 credentials are available, and belongs in its own
 `docs/results/grounding-benchmark-model-verifier.md` alongside real
-latency/cost/token numbers, not estimated ones. `fabricated_quote_rejection_rate`
-and `human_verifier_agreement_rate` stay N/A even then — the former needs
-a real model's own proposed quote to test rejection against (this runner
-doesn't fabricate output on the model's behalf), the latter needs the
-sealed split's independent human review (see below), which is
-orthogonal to having API credentials.
+latency/cost/token numbers, not estimated ones. `human_verifier_agreement_rate`
+stays N/A even then — it needs the sealed split's independent human review
+(see below), which is orthogonal to having API credentials, so
+`--strict-release-gate` will correctly still block the actual release
+decision until that review has happened.
 
 ## Getting the sealed split independently reviewed
 

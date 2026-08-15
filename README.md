@@ -701,9 +701,16 @@ docker compose up -d
 # test_tenancy.py run automatically against POSTGRES_URL (no LLM key
 # needed, and test_tenancy.py needs a POSTGRES_URL with permission to
 # CREATE ROLE); the MCP tests there are skipped if the `mcp` package isn't
-# installed; the end-to-end tests in test_integration.py/test_scenarios.py
-# additionally require OPENAI_API_KEY or GOOGLE_API_KEY and are skipped
-# otherwise.
+# installed.
+#
+# The end-to-end tests in test_integration.py/test_scenarios.py make real,
+# billed OpenAI/Gemini API calls (gated only on POSTGRES_URL + the
+# relevant API key being set, no mocking) and are marked `live_provider` --
+# pyproject.toml's default addopts excludes that marker, so a plain
+# `pytest`/`uv run pytest` run never triggers them even if you happen to
+# have a real key set in your environment. Run them deliberately when you
+# want that check:
+#   uv run pytest -m live_provider
 #
 # Note: test_tenancy.py drops and recreates the `postgres_graph_rag` schema
 # and `pgr_test_runtime`/`pgr_runtime` roles — safe against a fresh dev

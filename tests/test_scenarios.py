@@ -10,6 +10,12 @@ load_dotenv()
 POSTGRES_URL = os.getenv("POSTGRES_URL")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
+# Every test in this module makes a real Gemini API call via the rag_class
+# fixture below (gated only on POSTGRES_URL + GOOGLE_API_KEY being set, no
+# mocking) -- excluded from routine runs by pyproject.toml's default
+# addopts, run explicitly with `pytest -m live_provider`.
+pytestmark = pytest.mark.live_provider
+
 
 def instrument_rag(rag: PostgresGraphRAG):
     # Instrument internal components

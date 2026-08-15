@@ -17,26 +17,43 @@ Requires a real provider to produce a live result:
     GOOGLE_API_KEY=... python -m benchmarks.grounding.model_verifier_runner \\
         --provider google --split dev
 
-Two things can be exercised right now, without any real API key or network
-call, and are covered by tests/test_model_verifier_runner.py:
+Three things can be exercised right now, without any real API key or
+network call, and are covered by tests/test_model_verifier_runner.py:
 
 - `--simulate-failure` runs every case through an extractor whose
-  verify_claims always raises, which is how
-  verifier_failure_safely_represented_rate is measured -- confirming every
-  case that actually reaches the model layer reports
-  grounding "verification_failed" outcomes rather than something silently
-  substituted, end-to-end through this runner, not just in
-  test_model_verifier.py's unit tests.
-- Passing a custom extractor object programmatically (see `run()`'s
+  verify_claims always raises. This is the *only* way
+  verifier_failure_safely_represented_rate is ever computed (see
+  `is_simulated_failure_run` in `compute_metrics`) -- a live run's real
+  failure count is neither controllable nor a meaningful sample, so this
+  metric stays N/A outside `--simulate-failure` even if a live run
+  happens to hit a real outage.
+- `run_fabrication_check()` measures `fabricated_quote_rejection_rate`
+  from the existing `fabrication_fixtures.json` pairs on every run
+  (live or simulated) -- no real model needed, since a fixture's
+  `fabricated_quote` is guaranteed by construction to never be a literal
+  substring of its `chunk_content`; a stub extractor claims it as the
+  supporting quote and this checks that `ModelEntailmentVerifier` rejects
+  it anyway.
+- Passing a custom extractor object programmatically (see `run_all()`'s
   `extractor` parameter) instead of going through `main()`'s
   --provider/API-key path, for any other offline simulation.
 
-`fabricated_quote_rejection_rate` and `human_verifier_agreement_rate`
-remain N/A here: the former needs a real model to actually propose a
-quote to test rejection against (this runner doesn't fabricate model
-output on the model's behalf), and the latter needs the sealed split's
-independent human review, which hasn't happened yet -- see
+`human_verifier_agreement_rate` remains N/A here: it needs the sealed
+split's independent human review, which hasn't happened yet -- see
 benchmarks/grounding/LABELING.md.
+
+A `verification_failed` outcome (provider error/timeout/malformed
+response) is treated as an *incomplete* result for that case, never as
+either an acceptance or a rejection -- it is excluded from every escape/
+retention/rejection rate's denominator and disclosed only via
+`verification_failure_count`. Folding it into those rates would let a
+provider outage look identical to (or better than) a correct rejection.
+
+Two gate-checking modes are available: `--fail-on-gate` (permissive --
+only an actual FAIL blocks; suitable for iterating against `dev`/
+`calibration`) and `--strict-release-gate` (an N/A verdict blocks too;
+this is the one an actual release go/no-go decision should use, since a
+required gate that was never measured must not silently pass CI).
 """
 import argparse
 import asyncio
@@ -47,7 +64,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from postgres_graph_rag.extractor import LLMExtractor
+from postgres_graph_rag.extractor import LLMExtractor, ModelVerdict
 from postgres_graph_rag.grounding import AnswerClaim, VerifierUnavailableError
 from postgres_graph_rag.model_verifier import ModelEntailmentVerifier
 from postgres_graph_rag.models import GOOGLE_DEFAULT_CONFIG, OPENAI_DEFAULT_CONFIG
@@ -56,6 +73,7 @@ from postgres_graph_rag.tenant_engine import TenantRetrievedChunk
 from .gates import RELEASE_2_GATES
 
 CASES_PATH = Path(__file__).parent / "cases.json"
+FABRICATION_FIXTURES_PATH = Path(__file__).parent / "fabrication_fixtures.json"
 
 
 class AlwaysFailingExtractor:
@@ -95,6 +113,60 @@ def _to_chunk(ev: Dict[str, Any]) -> TenantRetrievedChunk:
 
 def _to_bracketed(cid: str) -> str:
     return f"[{cid}]"
+
+
+class _FabricatingExtractor:
+    """Stub whose verify_claims always returns a 'supported' verdict
+    quoting whatever text it's constructed with -- used only to check that
+    ModelEntailmentVerifier's server-side quote validation rejects a quote
+    that isn't actually in the cited evidence. Entirely offline: it never
+    calls a real model, it just asserts what one *could* claim."""
+
+    config = {"extraction_model": "fabrication-check-stub"}
+    last_usage = None
+
+    def __init__(self, claim_id: str, fabricated_quote: str):
+        self._claim_id = claim_id
+        self._fabricated_quote = fabricated_quote
+
+    async def verify_claims(self, prompt: str) -> List[ModelVerdict]:
+        return [ModelVerdict(
+            claim_id=self._claim_id, verdict="supported",
+            supporting_quote=self._fabricated_quote, confidence=0.95,
+        )]
+
+
+async def run_fabrication_check() -> Optional[float]:
+    """Measures fabricated_quote_rejection_rate using the existing
+    fabrication_fixtures.json pairs (built for exactly this) -- no live
+    model needed. Each fixture's `fabricated_quote` is, by construction
+    (see fabrication_fixtures.py's own assertions), never a literal
+    substring of `chunk_content`. Using it as both the claim's own text
+    (so the deterministic layer can't resolve it via a direct quote match
+    and forwards it to the model layer) and as the stub model's proposed
+    supporting_quote exercises the real rejection path: if
+    ModelEntailmentVerifier ever trusted an unverified model quote, this
+    would catch it.
+    """
+    fixtures = json.loads(FABRICATION_FIXTURES_PATH.read_text())["fixtures"]
+    if not fixtures:
+        return None
+
+    rejected = 0
+    for fixture in fixtures:
+        evidence = [_to_chunk({"source_id": "fab", "ordinal": 0, "content": fixture["chunk_content"]})]
+        claim = AnswerClaim(
+            id=fixture["id"], text=fixture["fabricated_quote"],
+            citation_ids=[_to_bracketed("fab#0")],
+        )
+        verifier = ModelEntailmentVerifier(
+            _FabricatingExtractor(fixture["id"], fixture["fabricated_quote"]), evidence,
+        )
+        [result] = await verifier.verify([claim])
+        if result.verdict != "supported":
+            rejected += 1
+
+    return rejected / len(fixtures)
 
 
 @dataclass
@@ -146,15 +218,31 @@ def compute_metrics(
     cost_per_1k_completion_tokens: Optional[float],
     provider: str,
     model: str,
+    fabricated_quote_rejection_rate: Optional[float] = None,
+    is_simulated_failure_run: bool = False,
 ) -> Dict[str, Any]:
     def rate(pairs, predicate):
         return (sum(1 for o in pairs if predicate(o)) / len(pairs)) if pairs else None
 
-    unsupported = [o for o in outcomes if o.case["label"] in ("contradicted", "insufficient")]
-    contradicted = [o for o in outcomes if o.case["label"] == "contradicted"]
-    supported = [o for o in outcomes if o.case["label"] == "supported"]
+    # A verification_failed case is an *incomplete* quality signal, not a
+    # rejection and not an acceptance -- it must never appear in any
+    # escape/retention/rejection denominator. Folding it in (the original
+    # bug here) meant a provider outage could dilute an escape-rate
+    # denominator with cases that trivially "didn't escape" (verdict is
+    # None, so `== "supported"` is always False), making the rate look
+    # better than the verifier's actual behavior on the cases it completed
+    # -- and, for unknown_citation_rejection_rate, an outage's `verdict
+    # != "supported"` was literally indistinguishable from a correct
+    # rejection. `resolved` is the only population these rates are
+    # computed over; incomplete cases are tracked solely via
+    # verification_failure_count.
+    resolved = [o for o in outcomes if not o.verification_failed]
+
+    unsupported = [o for o in resolved if o.case["label"] in ("contradicted", "insufficient")]
+    contradicted = [o for o in resolved if o.case["label"] == "contradicted"]
+    supported = [o for o in resolved if o.case["label"] == "supported"]
     unknown_citation = [
-        o for o in outcomes
+        o for o in resolved
         if any(
             cid not in {f"{ev['source_id']}#{ev['ordinal']}" for ev in o.case["retrieved_evidence"]}
             for cid in o.case["asserted_citation_ids"]
@@ -175,15 +263,28 @@ def compute_metrics(
         "supported_claim_retention_rate": rate(supported, lambda o: o.verdict == "supported"),
         "incorrect_abstention_rate": rate(supported, lambda o: o.verdict != "supported"),
         "unknown_citation_rejection_rate": rate(unknown_citation, lambda o: o.verdict != "supported"),
-        # Preserved as their own count, not folded into an escape/rejection
-        # rate -- a verification_failed outcome is neither "supported" nor
-        # a normal rejection; hiding it inside another rate would make a
-        # provider outage look identical to a correct abstention.
+        # Preserved as its own count, not folded into an escape/rejection
+        # rate or excluded silently -- a verification_failed outcome is
+        # neither "supported" nor a normal rejection; it's an incomplete
+        # run that a real release decision must see disclosed, not hidden
+        # inside a rate that looks clean by construction.
         "verification_failure_count": sum(1 for o in outcomes if o.verification_failed),
+        # Only ever measured from a --simulate-failure exercise, never from
+        # whatever real outages happened to occur during a live run: a
+        # live run's real failure count is neither controllable nor a
+        # meaningful sample (a healthy run should have ~0 real failures,
+        # which would make "fraction of attempts that failed" collapse to
+        # 0% and wrongly fail this gate on a perfectly healthy run). The
+        # simulated-failure exercise is the actual, designed-for way to
+        # answer "when the verifier DOES fail, is it represented safely".
         "verifier_failure_safely_represented_rate": (
-            rate(model_attempted, lambda o: o.verification_failed) if model_attempted else None
+            rate(model_attempted, lambda o: o.verification_failed)
+            if is_simulated_failure_run and model_attempted else None
         ),
-        "fabricated_quote_rejection_rate": None,  # needs a real model's own proposed quote, not simulated here
+        # Measured offline from fabrication_fixtures.json regardless of
+        # whether this is a live or simulated run -- see
+        # run_fabrication_check(), which needs no real model.
+        "fabricated_quote_rejection_rate": fabricated_quote_rejection_rate,
         "human_verifier_agreement_rate": None,  # sealed split not yet independently reviewed
         "model_calls_attempted": len(model_attempted),
     }
@@ -276,7 +377,19 @@ def write_markdown_report(path: Path, split_label: str, metrics: Dict[str, Any],
     path.write_text("\n".join(lines) + "\n")
 
 
-def required_gates_failed(gates: List[Dict[str, Any]]) -> bool:
+def required_gates_failed(gates: List[Dict[str, Any]], strict: bool = False) -> bool:
+    """strict=False (ordinary/dev runs): only an actual FAIL verdict fails
+    the run -- a gate that's legitimately N/A (not yet measurable, e.g.
+    human_verifier_agreement_rate before review) doesn't block iteration.
+
+    strict=True (release-gate mode): an N/A verdict fails too. A real
+    release decision cannot pass with a required gate silently unmeasured
+    -- see the CTO correction this was written to address: N/A gates were
+    previously invisible to --fail-on-gate, so CI could exit 0 while the
+    human-review and fabricated-quote gates had never actually run.
+    """
+    if strict:
+        return any(g["verdict"] in ("FAIL", "N/A") for g in gates)
     return any(g["verdict"] == "FAIL" for g in gates)
 
 
@@ -289,10 +402,13 @@ async def main_async(args: argparse.Namespace) -> int:
         extractor = build_real_extractor(args.provider)
 
     outcomes = await run_all(cases, extractor)
+    fabrication_rate = await run_fabrication_check()
     metrics = compute_metrics(
         outcomes, args.cost_per_1k_prompt_tokens, args.cost_per_1k_completion_tokens,
         provider=("simulated-failure" if args.simulate_failure else args.provider),
         model=extractor.config["extraction_model"],
+        fabricated_quote_rejection_rate=fabrication_rate,
+        is_simulated_failure_run=args.simulate_failure,
     )
     gates = gate_results(metrics)
 
@@ -305,7 +421,10 @@ async def main_async(args: argparse.Namespace) -> int:
         write_markdown_report(Path(args.markdown_out), args.split, metrics, gates)
         print(f"\nWrote {args.markdown_out}")
 
-    if args.fail_on_gate and required_gates_failed(gates):
+    if args.strict_release_gate:
+        if required_gates_failed(gates, strict=True):
+            return 1
+    elif args.fail_on_gate and required_gates_failed(gates, strict=False):
         return 1
     return 0
 
@@ -323,7 +442,11 @@ def main() -> None:
     parser.add_argument("--markdown-out", default=None, help="Path to write a Markdown report, e.g. "
                          "docs/results/grounding-benchmark-model-verifier.md")
     parser.add_argument("--fail-on-gate", action="store_true",
-                         help="Exit with status 1 if any non-N/A gate fails.")
+                         help="Exit with status 1 if any gate FAILs (N/A gates are permitted -- for iteration).")
+    parser.add_argument("--strict-release-gate", action="store_true",
+                         help="Exit with status 1 if any gate FAILs OR is N/A -- for the actual release "
+                              "go/no-go decision, where every required gate must be genuinely measured. "
+                              "Takes precedence over --fail-on-gate if both are given.")
     args = parser.parse_args()
 
     exit_code = asyncio.run(main_async(args))

@@ -15,6 +15,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 
+@pytest.mark.live_provider
 @pytest.mark.skipif(not POSTGRES_URL, reason="POSTGRES_URL not set")
 class TestIntegration:
 
