@@ -13,6 +13,16 @@ from .tenant_engine import (
 )
 from .offline import OfflineExtractor
 from .tenancy import SchemaCompatibilityError
+from .grounding import (
+    AnswerClaim,
+    ClaimVerification,
+    GroundingMode,
+    GroundingStatus,
+    ReasonCode,
+    Verdict,
+    Verifier,
+    VerifiedAnswerResult,
+)
 
 __all__ = [
     "PostgresGraphRAG",
@@ -31,4 +41,12 @@ __all__ = [
     "AnswerResult",
     "OfflineExtractor",
     "SchemaCompatibilityError",
+    "AnswerClaim",
+    "ClaimVerification",
+    "GroundingMode",
+    "GroundingStatus",
+    "ReasonCode",
+    "Verdict",
+    "Verifier",
+    "VerifiedAnswerResult",
 ]
