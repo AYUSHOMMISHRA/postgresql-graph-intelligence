@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import warnings
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union, Callable
 from .database import DatabaseManager
@@ -22,6 +23,22 @@ logger = logging.getLogger("postgres_graph_rag")
 # ingestion_config, since that would otherwise fan out into thousands of
 # concurrent/retried LLM calls and a single enormous transaction.
 MAX_CHUNKS_PER_INGEST_CALL = 5000
+
+# Deprecation policy: deprecated immediately (this warning), no correctness
+# features backported to DatabaseManager/this direct path, security-critical
+# fixes only, removal targeted for 1.0.0 or after at least one published
+# deprecation release -- whichever gives downstream users more notice. See
+# the "Legacy API migration" section of README.md for what this path is
+# missing (atomic document publication, extraction status, evidence
+# provenance, retry recovery, RLS, verified grounding) and how to migrate.
+_LEGACY_DEPRECATION_MESSAGE = (
+    "{method}() uses the legacy single-tenant path (DatabaseManager), which "
+    "has not received the atomic-publication, retry-recovery, RLS, or "
+    "verified-grounding work done for the secure engine. Use "
+    "PostgresGraphRAG.for_tenant(tenant_id) instead -- see README.md's "
+    "'Legacy API migration' section. This path is deprecated and will be "
+    "removed in a future major version."
+)
 
 
 def simple_chunker(
@@ -220,6 +237,9 @@ class PostgresGraphRAG:
 
     async def setup(self):
         """Initializes the migration-safe database schema."""
+        warnings.warn(
+            _LEGACY_DEPRECATION_MESSAGE.format(method="setup"), DeprecationWarning, stacklevel=2,
+        )
         dimension = self.extractor.config["dimension"]
         await self.db.setup_database(embedding_dimension=dimension)
 
@@ -267,6 +287,9 @@ class PostgresGraphRAG:
           normalized match, then trigram + embedding fuzzy match, then new
           node) before a single bulk upsert.
         """
+        warnings.warn(
+            _LEGACY_DEPRECATION_MESSAGE.format(method="add_texts"), DeprecationWarning, stacklevel=2,
+        )
         if isinstance(texts, str):
             texts = [texts]
 
@@ -406,6 +429,9 @@ class PostgresGraphRAG:
         relation_types, exclude_relation_types, min_weight, score_decay,
         max_context_nodes, max_context_edges) can be overridden per call.
         """
+        warnings.warn(
+            _LEGACY_DEPRECATION_MESSAGE.format(method="query_structured"), DeprecationWarning, stacklevel=2,
+        )
         cfg: RetrievalConfig = {**self.retrieval_config, **overrides}
 
         query_emb = await self.extractor.get_embedding(question)
@@ -491,6 +517,9 @@ class PostgresGraphRAG:
         just want a prompt-ready context blob. Use ``query_structured`` to
         get scores, hop distances, and provenance for custom formatting.
         """
+        warnings.warn(
+            _LEGACY_DEPRECATION_MESSAGE.format(method="query"), DeprecationWarning, stacklevel=2,
+        )
         if hops is not None:
             overrides["hops"] = hops
         if top_k is not None:

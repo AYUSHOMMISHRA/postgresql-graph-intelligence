@@ -13,9 +13,10 @@ infrastructure over opaque agent loops or a separate graph database.
 
 > **Primary API:** new deployments should use the RLS-secured
 > `setup_secure()` → `for_tenant()` → `add_document()`/`retrieve()`/`answer()`
-> path. The original namespace-only `add_texts()` API remains compatible in
-> v0.1.0 but is now the legacy path and does not provide document provenance or
-> database-enforced tenant isolation.
+> path. The original namespace-only `add_texts()`/`query()` API is
+> deprecated (emits `DeprecationWarning`) and receives no correctness or
+> feature work — see [Legacy API migration](#legacy-api-migration) for the
+> full gap list and how to move existing data over.
 
 Technical documentation: [Architecture](docs/architecture.md) ·
 [Evaluation](docs/evaluation.md) · [Security](docs/security.md) ·
@@ -43,7 +44,7 @@ This library is built for **Postgres Maximalists**. It leverages the engine you 
 - **Infrastructure:** Postgres is the only database (via `pgvector` + `pg_trgm`).
 - **Intelligence:** Hosted LLMs (OpenAI or Gemini) for extraction. Freely configurable through `postgres_graph_rag/models.py`.
 - **Simplicity:** Native Async Python + SQL.
-- **Scalability:** High-performance connection pooling, bulk single-round-trip writes, and namespace-aware design. Two tenancy models are available: lightweight `namespace` parameterization (the default, single-tenant path) and Postgres Row-Level Security-enforced multi-tenancy (`for_tenant()`, see [Multi-Tenancy & Security](#multi-tenancy--security)).
+- **Scalability:** High-performance connection pooling, bulk single-round-trip writes, and namespace-aware design. The recommended, actively-developed path is Postgres Row-Level Security-enforced multi-tenancy (`for_tenant()`, see [Multi-Tenancy & Security](#multi-tenancy--security)); `namespace` is a partition *within* a tenant, not a substitute for one. The legacy namespace-only path (`add_texts()`/`query()` without `for_tenant()`) remains available for compatibility but is deprecated — see [Legacy API migration](#legacy-api-migration).
 
 > **Known scaling limitation:** all namespaces currently share one `graph_nodes`/`graph_edges` table pair. At the scales benchmarked so far (1K–10K nodes/namespace, see [Benchmarks](#benchmarks)), Postgres' planner prefers a namespace-filtered bitmap scan + sort over the HNSW ANN index, because per-namespace row counts are small relative to the whole table. This is fine at that scale; if you operate many large tenants in one deployment, re-run `benchmarks/bench_scale.py` against your own shape before assuming the HNSW index is doing the work.
 
@@ -103,8 +104,8 @@ async def quick_start():
 ```
 
 For a no-key, deterministic setup use `postgres-graph-rag-demo`; see
-[Operations](docs/operations.md). The older `setup()`/`add_texts()` API remains
-available for compatibility.
+[Operations](docs/operations.md). The older `setup()`/`add_texts()` API is
+deprecated — see [Legacy API migration](#legacy-api-migration).
 
 ---
 
@@ -114,8 +115,9 @@ available for compatibility.
 For applications (like FastAPI or background workers), use the `async with` pattern to ensure the connection pool is always closed correctly, even if errors occur.
 
 ```python
-async with PostgresGraphRAG(postgres_url=DSN, openai_api_key=KEY) as rag:
-    await rag.add_texts("The M4 chip uses ARM architecture.")
+async with PostgresGraphRAG(postgres_url=DSN, runtime_url=RUNTIME_DSN, openai_api_key=KEY) as rag:
+    engine = rag.for_tenant(TENANT_ID)
+    await engine.add_document("The M4 chip uses ARM architecture.", namespace="notes", source_id="doc-1")
     # No need to call rag.close(), it happens automatically!
 ```
 
@@ -153,27 +155,29 @@ rag = PostgresGraphRAG(..., config=custom_config)
 
 > **pgvector dimension limits:** HNSW indexes only support up to 2000 dimensions on the standard `vector` type. Above that (like the 3072-dim example above), `setup_database()` automatically switches the embedding column to pgvector's half-precision `halfvec` type, which extends HNSW support to 4000 dimensions. Beyond 4000 dimensions there is no ANN index available at all — `vector_search` falls back to an exact sequential scan, which does not scale past small graphs; a warning is logged when this happens. See [pgvector's HNSW docs](https://github.com/pgvector/pgvector#hnsw).
 
-### 4. Multi-Tenancy (Namespacing)
-Isolate data for different users or projects within the same database tables. Every read/write path is parameterized on `namespace`, and it's covered by dedicated cross-namespace-leakage tests (`tests/test_database.py::test_namespace_isolation_in_traversal_and_vector_search`).
+### 4. Namespaces: partitioning within a tenant
+`namespace` isolates data within the same tenant's tables — a project, a document collection, a topic area. It is **not** a tenancy boundary: real isolation between untrusted parties is `for_tenant()`'s job (Postgres Row-Level Security, see [Multi-Tenancy & Security](#multi-tenancy--security)), not `namespace` alone.
 
 ```python
-# User A's private graph
-await rag.add_texts("My secret key is 123.", namespace="user_a")
+engine = rag.for_tenant(TENANT_ID)
 
-# User B's private graph
-await rag.add_texts("My secret key is 999.", namespace="user_b")
+# Two projects under the same tenant, kept separate by namespace
+await engine.add_document("The Q3 roadmap prioritizes checkout latency.", namespace="project_a", source_id="doc-1")
+await engine.add_document("The Q3 roadmap prioritizes onboarding flow.", namespace="project_b", source_id="doc-1")
 
-# Queries are strictly isolated
-res = await rag.query("What is my key?", namespace="user_a") # Returns 123
+# Queries are scoped to one namespace
+result = await engine.retrieve("What does the roadmap prioritize?", namespace="project_a")
 ```
 
+The legacy path's namespace-only isolation (`add_texts()`/`query()` without `for_tenant()`) is covered by `tests/test_database.py::test_namespace_isolation_in_traversal_and_vector_search`, but it's application-level `WHERE namespace = ...` filtering, not a database-enforced boundary — see [Legacy API migration](#legacy-api-migration) for what that gap actually means.
+
 ### 5. Directed & Filtered Traversal
-Retrieval and ingestion behavior are tunable via `retrieval_config` / `ingestion_config`, or per-call keyword overrides on `query()` / `query_structured()`:
+Retrieval and ingestion behavior are tunable via `retrieval_config` / `ingestion_config`, or per-call keyword overrides on `engine.retrieve()` / `engine.answer()`:
 
 ```python
 # Only follow edges in their extracted source -> target direction, only
 # across "depends_on"/"uses" relations, and ignore weak/low-confidence edges.
-result = await rag.query_structured(
+result = await engine.retrieve(
     "What does the checkout service depend on?",
     namespace="architecture",
     directed=True,
@@ -210,9 +214,12 @@ A chunk that keeps failing extraction after retries is logged and skipped —
 it does not abort the rest of the batch, and it is **not** marked as
 ingested, so a later retry of the same source will retry just that chunk.
 
-> **Idempotency skip is disabled whenever you pass `metadata`.** If a call
+> **Idempotency skip is disabled whenever you pass `metadata`** — legacy `add_texts()` only. If a call
 > to `add_texts()` includes a `metadata` dict, it always runs in full (never
 > skipped as a duplicate), even if the text is identical to a previous call.
+> (The secure `add_document()` path's idempotency works differently — see
+> the atomic hash/chunk publication described above — and doesn't have this
+> particular special case.)
 > This is deliberate: skip-if-seen has no way to attach new metadata to
 > entities from a chunk that was never re-processed, so silently skipping
 > would silently drop that metadata. Found via a real end-to-end test
@@ -273,6 +280,74 @@ against, and `docs/results/grounding-benchmark-deterministic-verifier.md`
 for a measured before/after: contradicted-claim escape rate 100% → 0% from
 the deterministic layers alone (steps 1-3 above), at an expected,
 documented cost to recall that the model layer (step 4) exists to recover.
+
+---
+
+## Legacy API migration
+
+`PostgresGraphRAG.setup()`, `.add_texts()`, `.query()`, and `.query_structured()`
+are the original single-tenant path, predating `SecureGraphStore`/`for_tenant()`.
+They still work — each now emits a `DeprecationWarning` pointing here — but
+they are frozen: **no correctness or feature work since has been backported
+to them.** Concretely, the legacy path does not have:
+
+- **Atomic document publication.** `add_texts()`'s content-hash check and
+  its chunk writes are separate operations, not one transaction — the
+  exact permanent-retry-hole class of bug the secure path's
+  `add_document()` was fixed to close (see the CHANGELOG's Release 1.1
+  entries). A failure between them can leave a hash that silently skips
+  all future retries with the same text.
+- **`extraction_status` tracking.** No way to tell "chunk is text-searchable
+  but graph extraction hasn't finished" apart from "fully graph-ready."
+- **Evidence provenance.** No `documents`/`entity_mentions`/`edge_mentions`
+  tables — "which documents mention X" isn't answerable, and deleting one
+  document's contribution isn't safely separable from another's sharing
+  the same namespace.
+- **Retry recovery without the original text.** No `retry_failed_chunks()`
+  equivalent; a failed extraction requires re-calling `add_texts()` with
+  the source text still in hand.
+- **Row-Level Security.** `namespace` is an application-level filter, not
+  a database-enforced tenant boundary — see [Multi-Tenancy & Security](#multi-tenancy--security).
+- **Verified grounding.** No `answer()` method at all on the legacy path,
+  so none of `citation_only`/`verified`/`verified_strict` grounding modes
+  ([section 7](#7-grounding-modes-entailment-verification-not-just-citation-validity))
+  are available.
+
+### Migrating existing legacy data
+
+If you have data under the old single-tenant schema (`public.graph_nodes`/
+`public.graph_edges`, from `DatabaseManager`), `setup_secure()` can backfill
+it into the secure schema under a fixed legacy tenant, preserving node/edge
+IDs:
+
+```python
+await rag.setup_secure(
+    admin_url=ADMIN_DSN,
+    runtime_role="pgr_runtime",
+    runtime_password=os.environ["PGR_RUNTIME_PASSWORD"],
+    migrate_legacy_data=True,
+)
+
+from postgres_graph_rag.tenancy import LEGACY_TENANT_ID
+legacy_engine = rag.for_tenant(LEGACY_TENANT_ID)
+result = await legacy_engine.retrieve("What does checkout-service depend on?", namespace="legacy-ns")
+```
+
+Migrated nodes and edges become graph-only — there's no source document to
+backfill a chunk/mention for, since the legacy schema never recorded
+provenance. Migrated edges carry their old `weight` forward as
+`manual_weight` (not left at its default), so they remain traversable
+under the secure path's evidence-support filtering; this is covered by
+`tests/test_tenancy.py::test_legacy_data_migration_preserves_ids`.
+
+### Removal policy
+
+- Deprecated immediately (current release): warnings on all four methods,
+  no functional change.
+- No correctness features will be backported — only security-critical
+  fixes, if any are ever found.
+- Targeted for removal in `1.0.0`, or after at least one published
+  deprecation release, whichever gives downstream users more notice.
 
 ---
 
@@ -375,7 +450,7 @@ Retrieval modes are explicit: `vector` is the lexical/vector baseline, `hybrid` 
 
 ## Multi-Tenancy & Security
 
-`postgres_graph_rag.tenancy` is a separate, additive engine (`SecureGraphStore`) alongside the single-tenant `DatabaseManager` — using it does not affect or require migrating away from the simple `PostgresGraphRAG(postgres_url=...)` path.
+`postgres_graph_rag.tenancy` (`SecureGraphStore`) is the recommended, actively-developed engine. It's additive in the sense that adopting it doesn't require deleting existing data first (`migrate_legacy_data=True` backfills it, see [Legacy API migration](#legacy-api-migration)) — but it is not a parallel, equally-supported option alongside the single-tenant `DatabaseManager` path; that path is deprecated.
 
 ```python
 from postgres_graph_rag import PostgresGraphRAG

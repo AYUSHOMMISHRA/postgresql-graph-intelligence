@@ -2,6 +2,44 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — Legacy path deprecation and migration hardening
+
+Prompted by an architecture audit: `PostgresGraphRAG.for_tenant()` already
+delegated to the secure engine, and every real caller in this repo
+(`demo.py`, `mcp_server.py`, `evaluation.py`, both CLI entry points) already
+used it exclusively — but the raw legacy path (`add_texts()`/`query()`/
+`query_structured()`, no RLS, no `answer()` at all) was still presented in
+docs as a roughly equal option, and had received none of Release 1's
+correctness fixes or Release 2's grounding work.
+
+### Fixed
+
+- **Migrated legacy edges were invisible to secure traversal.**
+  `_migrate_legacy_data()` copied a legacy edge's `weight` but left
+  `manual_weight` at its default `0.0` — since `support_count` is also `0`
+  for migrated edges (the legacy schema never recorded evidence/mentions),
+  every migrated edge failed the `support_count > 0 OR manual_weight > 0`
+  read-time filter added for the unsupported-edge leak, and simply
+  vanished from traversal despite `weight` being correctly populated.
+  Fixed by copying `weight` into `manual_weight` too — the same
+  representation `upsert_edges(evidence_backed=False)` already uses for
+  deterministic, non-evidence-backed edges, which is exactly what a
+  migrated legacy edge is. The existing migration test only checked node
+  vector search; it now also creates an edge and confirms it survives
+  migration and remains traversable.
+
+### Deprecated
+
+- `PostgresGraphRAG.setup()`, `.add_texts()`, `.query()`, and
+  `.query_structured()` now emit `DeprecationWarning` (`stacklevel=2`,
+  pointing at the caller). No functional change otherwise. Removal
+  targeted for `1.0.0`, or after at least one published deprecation
+  release; no correctness features will be backported to this path,
+  security-critical fixes only. See README.md's new "Legacy API
+  migration" section for the full gap list (atomic publication,
+  `extraction_status`, evidence provenance, retry recovery, RLS, verified
+  grounding) and the `migrate_legacy_data=True` migration path.
+
 ## Unreleased — Release 2: verified grounding (PRs 1-5)
 
 Closes the gap the citation-only validator couldn't: a citation naming a

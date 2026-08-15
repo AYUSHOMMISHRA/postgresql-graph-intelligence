@@ -881,10 +881,26 @@ async def _migrate_legacy_data(cur, vector_type: str, embedding_dimension: int) 
         """,
         (str(LEGACY_TENANT_ID),),
     )
+    # manual_weight is set from the legacy weight (not left at its default
+    # 0.0): a migrated edge has no document evidence at all (the legacy
+    # schema never recorded provenance), so support_count correctly stays
+    # 0 -- but leaving manual_weight at 0 too, with only `weight` carrying
+    # the old value, violates the weight = manual_weight + support_count
+    # invariant every other write path maintains. Worse, it silently drops
+    # the edge out of traversal entirely: the read-time defense-in-depth
+    # filter added for the unsupported-edge leak (support_count > 0 OR
+    # manual_weight > 0) would treat every migrated edge as unsupported,
+    # since a bare `weight` column satisfying `weight >= min_weight` alone
+    # doesn't pass that check. Copying weight into manual_weight is exactly
+    # how a deterministic, non-evidence-backed edge is represented
+    # elsewhere (see upsert_edges' evidence_backed=False branch) --
+    # migrated legacy edges are precisely that: manually-asserted,
+    # unsupported-by-any-chunk facts.
     await cur.execute(
         f"""
-        INSERT INTO {SCHEMA}.graph_edges (id, tenant_id, namespace, source_node_id, target_node_id, relation, weight, metadata, created_at)
-        SELECT id, %s, namespace, source_node_id, target_node_id, relation, weight, metadata, created_at
+        INSERT INTO {SCHEMA}.graph_edges
+            (id, tenant_id, namespace, source_node_id, target_node_id, relation, weight, manual_weight, metadata, created_at)
+        SELECT id, %s, namespace, source_node_id, target_node_id, relation, weight, weight, metadata, created_at
         FROM public.graph_edges
         ON CONFLICT (tenant_id, namespace, source_node_id, target_node_id, relation) DO NOTHING
         """,

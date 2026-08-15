@@ -1,3 +1,6 @@
+import uuid
+import warnings
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from postgres_graph_rag import PostgresGraphRAG
@@ -241,3 +244,76 @@ async def test_query_structured_sorts_by_score_and_passes_filters(
     kwargs = mock_db.traverse_graph.call_args.kwargs
     assert kwargs["directed"] is True
     assert kwargs["relation_types"] == ["depends_on"]
+
+
+# ----------------------------------------------------------------------
+# Legacy path deprecation warnings
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_setup_emits_deprecation_warning(rag, mock_db_class, mock_extractor_class):
+    mock_db = mock_db_class.return_value
+    mock_db.setup_database = AsyncMock()
+
+    with pytest.warns(DeprecationWarning, match="setup\\(\\) uses the legacy single-tenant path"):
+        await rag.setup()
+
+
+@pytest.mark.asyncio
+async def test_add_texts_emits_deprecation_warning(rag, mock_db_class, mock_extractor_class):
+    mock_db = mock_db_class.return_value
+    mock_extractor = mock_extractor_class.return_value
+    mock_extractor.config = OPENAI_DEFAULT_CONFIG
+    _wire_async_connection(mock_db)
+    mock_db.filter_new_chunks = AsyncMock(side_effect=lambda chunks, namespace: chunks)
+    mock_db.mark_chunks_ingested = AsyncMock()
+    mock_extractor.extract_triplets = AsyncMock(return_value=[])
+    mock_extractor.get_embedding = AsyncMock(return_value=[[0.1] * 1536])
+
+    with pytest.warns(DeprecationWarning, match="add_texts\\(\\) uses the legacy single-tenant path"):
+        await rag.add_texts("Apple released the M4.", namespace="test-ns")
+
+
+@pytest.mark.asyncio
+async def test_query_structured_emits_deprecation_warning(rag, mock_db_class, mock_extractor_class):
+    mock_db = mock_db_class.return_value
+    mock_extractor = mock_extractor_class.return_value
+    _wire_async_connection(mock_db)
+    mock_extractor.get_embedding = AsyncMock(return_value=[0.1] * 1536)
+    mock_db.vector_search = AsyncMock(return_value=[])
+    mock_db.traverse_graph = AsyncMock(return_value={"nodes": [], "edges": []})
+
+    with pytest.warns(DeprecationWarning, match="query_structured\\(\\) uses the legacy single-tenant path"):
+        await rag.query_structured("q", namespace="ns")
+
+
+@pytest.mark.asyncio
+async def test_query_emits_deprecation_warning(rag, mock_db_class, mock_extractor_class):
+    mock_db = mock_db_class.return_value
+    mock_extractor = mock_extractor_class.return_value
+    _wire_async_connection(mock_db)
+    mock_extractor.get_embedding = AsyncMock(return_value=[0.1] * 1536)
+    mock_db.vector_search = AsyncMock(return_value=[])
+    mock_db.traverse_graph = AsyncMock(return_value={"nodes": [], "edges": []})
+
+    # query() delegates to query_structured(), which also warns -- both are
+    # real, distinct call sites (different lines), so both fire; confirm at
+    # least query()'s own warning is present rather than asserting an exact
+    # count that would be brittle to that implementation detail.
+    with pytest.warns(DeprecationWarning, match="query\\(\\) uses the legacy single-tenant path"):
+        await rag.query("q", namespace="ns")
+
+
+@pytest.mark.asyncio
+async def test_for_tenant_does_not_emit_legacy_deprecation_warning(rag, mock_db_class, mock_extractor_class):
+    """for_tenant() is the recommended, secure path -- it must never trigger
+    the legacy warning, even though it's a method on the same class."""
+    mock_extractor = mock_extractor_class.return_value
+    mock_extractor.config = OPENAI_DEFAULT_CONFIG
+    rag._runtime_url = "postgresql://user:pass@localhost:5432/db"
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        rag.for_tenant(uuid.uuid4())
+    legacy_warnings = [w for w in caught if "legacy single-tenant path" in str(w.message)]
+    assert legacy_warnings == []

@@ -19,6 +19,7 @@ import uuid
 import pytest
 import pytest_asyncio
 import psycopg
+from psycopg.rows import dict_row
 from dotenv import load_dotenv
 
 from postgres_graph_rag.tenancy import (
@@ -225,6 +226,16 @@ async def test_legacy_data_migration_preserves_ids(admin_conn):
     ids = await legacy_db.upsert_nodes_batch(
         [{"content": "PreMigration", "embedding": vec(0)}], namespace="legacy-ns"
     )
+    node_ids = await legacy_db.upsert_nodes_batch(
+        [
+            {"content": "checkout-service", "embedding": vec(1)},
+            {"content": "auth-service", "embedding": vec(2)},
+        ],
+        namespace="legacy-ns",
+    )
+    await legacy_db.upsert_edge(
+        node_ids[0], node_ids[1], "depends_on", namespace="legacy-ns", weight=3.0,
+    )
     await legacy_db.close()
 
     await migrate_schema(
@@ -237,9 +248,40 @@ async def test_legacy_data_migration_preserves_ids(admin_conn):
 
     s = SecureGraphStore(_runtime_url(), vector_type="vector")
     nodes = await s.vector_search_nodes(LEGACY_TENANT_ID, "legacy-ns", vec(0), top_k=10)
+    by_content = {n["content"]: n for n in nodes}
+    assert "PreMigration" in by_content
+    assert str(by_content["PreMigration"]["id"]) == ids[0]
+
+    # A migrated edge has no document evidence (the legacy schema never
+    # recorded provenance), but it must still be traversable -- regression
+    # test for manual_weight being left at its default 0.0 during
+    # migration, which made every migrated edge invisible to the
+    # support_count > 0 OR manual_weight > 0 read-time filter even though
+    # its `weight` column was correctly populated.
+    graph = await s.traverse_graph(
+        LEGACY_TENANT_ID, [node_ids[0]], namespace="legacy-ns", max_hops=1, directed=True,
+    )
     await s.close()
-    assert {n["content"] for n in nodes} == {"PreMigration"}
-    assert str(nodes[0]["id"]) == ids[0]
+    assert {n["content"] for n in graph["nodes"]} == {"checkout-service", "auth-service"}
+    assert len(graph["edges"]) == 1
+    edge = graph["edges"][0]
+    assert edge["relation"] == "depends_on"
+    assert edge["source_content"] == "checkout-service"
+    assert edge["target_content"] == "auth-service"
+    assert edge["weight"] == 3.0
+    assert str(edge["source_node_id"]) == node_ids[0]
+    assert str(edge["target_node_id"]) == node_ids[1]
+
+    async with (await psycopg.AsyncConnection.connect(POSTGRES_URL, row_factory=dict_row)) as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f"SELECT manual_weight, support_count FROM {SCHEMA}.graph_edges "
+                "WHERE tenant_id = %s AND relation = %s",
+                (str(LEGACY_TENANT_ID), "depends_on"),
+            )
+            row = await cur.fetchone()
+    assert row["manual_weight"] == 3.0
+    assert row["support_count"] == 0
 
 
 # ----------------------------------------------------------------------
