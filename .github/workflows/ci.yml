@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --extra test --extra mcp
+      - name: Unit tests
+        run: uv run pytest -q tests/test_core.py tests/test_filters.py tests/test_offline.py tests/test_tenant_engine.py tests/test_evaluation.py tests/test_extractor.py tests/test_observability.py
+      - name: Static checks
+        run: uv run ruff check postgres_graph_rag tests benchmarks
+      - name: Build wheel and source distribution
+        run: uv build
+
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pgr_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pgr_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --extra test --extra mcp
+      - name: Database and tenancy tests
+        env:
+          POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/pgr_test
+          OPENAI_API_KEY: ""
+          GOOGLE_API_KEY: ""
+        run: uv run pytest -q tests/test_database.py tests/test_tenancy.py
