@@ -442,3 +442,182 @@ async def test_answer_reports_empty_model_response_if_retry_also_empty():
 
     assert result.grounded is False
     assert result.abstain_reason == "empty_model_response"
+
+
+# ----------------------------------------------------------------------
+# Release 2 PR 5: grounding_mode="verified"/"verified_strict"
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_answer_default_grounding_mode_is_citation_only():
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ownership-auth", "auth-service is owned by Identity Team", 0.032)
+    ]
+    result = await engine(store).answer("Who owns auth-service?", "incidents", mode="hybrid")
+    assert result.grounding_mode == "citation_only"
+    assert result.grounding_status == "citation_valid_only"
+    assert result.claims == []
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_grounds_via_deterministic_layer_alone():
+    """The claim's own phrasing is a literal quote from the cited evidence,
+    so DeterministicVerifier confirms it -- the model's verify_claims must
+    never be called (FakeExtractor doesn't even implement it)."""
+    class LiteralQuoteExtractor(FakeExtractor):
+        async def generate_text(self, prompt, max_tokens=500):
+            return "auth-service is owned by Identity Team. [ownership-auth#0]"
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ownership-auth", "auth-service is owned by Identity Team", 0.032)
+    ]
+
+    result = await engine(store, extractor=LiteralQuoteExtractor()).answer(
+        "Who owns auth-service?", "incidents", mode="hybrid", grounding_mode="verified",
+    )
+
+    assert result.grounding_mode == "verified"
+    assert result.grounding_status == "verified"
+    assert result.grounded is True
+    assert len(result.claims) == 1
+    assert result.verifications[0].verdict == "supported"
+    assert "auth-service is owned by Identity Team" in result.answer
+    assert result.citations[0].source_id == "ownership-auth"
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_drops_unsupported_claim_but_keeps_supported_one():
+    class MixedExtractor(FakeExtractor):
+        async def generate_text(self, prompt, max_tokens=500):
+            return (
+                "auth-service is owned by Identity Team. [ownership-auth#0] "
+                "checkout-service also depends on auth-service. [ownership-auth#0]"
+            )
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ownership-auth", "auth-service is owned by Identity Team", 0.032)
+    ]
+
+    result = await engine(store, extractor=MixedExtractor()).answer(
+        "Who owns auth-service?", "incidents", mode="hybrid", grounding_mode="verified",
+    )
+
+    assert result.grounding_status == "partially_verified"
+    assert result.grounded is True
+    assert "Identity Team" in result.answer
+    assert "1 billion requests" not in result.answer
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_strict_mode_abstains_on_any_unsupported_claim():
+    class MixedExtractor(FakeExtractor):
+        async def generate_text(self, prompt, max_tokens=500):
+            return (
+                "auth-service is owned by Identity Team. [ownership-auth#0] "
+                "checkout-service also depends on auth-service. [ownership-auth#0]"
+            )
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ownership-auth", "auth-service is owned by Identity Team", 0.032)
+    ]
+
+    result = await engine(store, extractor=MixedExtractor()).answer(
+        "Who owns auth-service?", "incidents", mode="hybrid", grounding_mode="verified_strict",
+    )
+
+    assert result.grounding_status == "insufficient"
+    assert result.grounded is False
+    assert result.answer.startswith("Insufficient evidence")
+    assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_forwards_undetermined_claim_to_the_model():
+    """A claim spanning two citations, neither of which alone contains its
+    full phrasing -- DeterministicVerifier can't decide, so this must
+    reach FakeExtractor's verify_claims."""
+    class ModelBackedExtractor(FakeExtractor):
+        async def generate_text(self, prompt, max_tokens=500):
+            return (
+                "checkout-service depends on auth-service, which is owned by Identity Team. "
+                "[deploy-doc#0] [ownership-auth#0]"
+            )
+
+        async def verify_claims(self, prompt):
+            from postgres_graph_rag.extractor import ModelVerdict
+            return [ModelVerdict(
+                claim_id="claim-0", verdict="supported",
+                supporting_quote="checkout-service depends on auth-service", confidence=0.9,
+            )]
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "deploy-doc", "checkout-service depends on auth-service", 0.04),
+        hit("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "ownership-auth", "auth-service is owned by Identity Team", 0.03),
+    ]
+
+    result = await engine(store, extractor=ModelBackedExtractor()).answer(
+        "What does checkout-service depend on?", "incidents", mode="hybrid", grounding_mode="verified",
+    )
+
+    assert result.grounding_status == "verified"
+    assert result.verifications[0].reason_code == "model_entailment_supported"
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_reports_verification_failed_on_provider_error():
+    class FailingModelExtractor(FakeExtractor):
+        async def generate_text(self, prompt, max_tokens=500):
+            return (
+                "checkout-service depends on auth-service, which is owned by Identity Team. "
+                "[deploy-doc#0] [ownership-auth#0]"
+            )
+
+        async def verify_claims(self, prompt):
+            raise RuntimeError("simulated provider outage")
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "deploy-doc", "checkout-service depends on auth-service", 0.04),
+        hit("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "ownership-auth", "auth-service is owned by Identity Team", 0.03),
+    ]
+
+    result = await engine(store, extractor=FailingModelExtractor()).answer(
+        "What does checkout-service depend on?", "incidents", mode="hybrid", grounding_mode="verified",
+    )
+
+    assert result.grounding_status == "verification_failed"
+    assert result.grounded is False
+    assert result.answer.startswith("Insufficient evidence")
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_abstains_when_no_citation_markers_present():
+    class NoMarkersExtractor(FakeExtractor):
+        async def generate_text(self, prompt, max_tokens=500):
+            return "auth-service is owned by Identity Team."  # no citation marker at all
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "ownership-auth", "auth-service is owned by Identity Team", 0.032)
+    ]
+
+    result = await engine(store, extractor=NoMarkersExtractor()).answer(
+        "Who owns auth-service?", "incidents", mode="hybrid", grounding_mode="verified",
+    )
+
+    assert result.grounding_status == "abstained"
+    assert result.grounded is False
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_invalid_grounding_mode_raises():
+    store = AsyncMock()
+    store.hybrid_search.return_value = []
+    with pytest.raises(ValueError, match="grounding_mode must be one of"):
+        await engine(store).answer("q", "ns", grounding_mode="verified_but_lazy")

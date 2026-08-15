@@ -2430,3 +2430,50 @@ async def test_find_paths_supports_multiple_sources_targets_and_top_k(store):
     )
     assert len(paths) == 2
     assert {p["target_id"] for p in paths} == {ids["T1"], ids["T2"]}
+
+
+@pytest.mark.asyncio
+async def test_answer_verified_mode_end_to_end_against_real_retrieval(store):
+    """Release 2 PR 5 integration check: grounding_mode="verified" against
+    a document actually ingested and retrieved through the real secure
+    store (test_tenant_engine.py's 25 tests cover the engine logic itself
+    against a mocked store; this confirms the same code path also works
+    with genuine TenantRetrievedChunk objects coming back from a live
+    hybrid_search/traverse_graph round trip, not just hand-built fixtures).
+    """
+    from unittest.mock import AsyncMock
+
+    from postgres_graph_rag import PostgresGraphRAG
+    from postgres_graph_rag.extractor import Triplet
+    from postgres_graph_rag.models import OPENAI_DEFAULT_CONFIG
+
+    config = dict(OPENAI_DEFAULT_CONFIG)
+    config["dimension"] = DIM
+    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+
+    async def fake_embed(text):
+        return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
+
+    rag.extractor.get_embedding = AsyncMock(side_effect=fake_embed)
+    rag.extractor.extract_triplets = AsyncMock(
+        return_value=[Triplet(subject="Acme", predicate="depends_on", object="Widgets Inc")]
+    )
+    rag.extractor.generate_text = AsyncMock(
+        return_value="Acme depends on Widgets Inc for supply. [doc-1#0]"
+    )
+
+    tenant = tid()
+    engine = rag.for_tenant(tenant)
+    await engine.add_document("Acme depends on Widgets Inc for supply.", namespace="ns", source_id="doc-1")
+
+    result = await engine.answer("What does Acme depend on?", namespace="ns", grounding_mode="verified")
+
+    assert result.grounding_mode == "verified"
+    assert result.grounding_status == "verified"
+    assert result.grounded is True
+    assert len(result.claims) == 1
+    assert result.verifications[0].verdict == "supported"
+    assert "Acme depends on Widgets Inc" in result.answer
+    assert result.citations[0].source_id == "doc-1"
+
+    await rag.close()

@@ -2,6 +2,66 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — Release 2: verified grounding (PRs 1-5)
+
+Closes the gap the citation-only validator couldn't: a citation naming a
+real, retrieved chunk previously passed as "grounded" regardless of
+whether that chunk's text actually supported the claim — a reversed
+relationship, a swapped predicate, or a wrong number all cited real
+evidence and still passed. `answer()` now supports three grounding modes.
+
+### Added
+
+- `postgres_graph_rag.grounding`: the verification contract —
+  `AnswerClaim`, `ClaimVerification`, `VerifiedAnswerResult`,
+  `GroundingStatus` (7 states, replacing an overloaded `grounded: bool`),
+  a `runtime_checkable` `Verifier` protocol, `VerifierUnavailableError`.
+- `postgres_graph_rag.verification`: the deterministic (non-model)
+  layers — citation existence, identifier/relevance checks (reusing
+  `tenant_engine.py`'s own normalization), server-side quote location,
+  a negation-based conflict heuristic, policy evaluation, deterministic
+  answer rendering, and `DeterministicVerifier` as an injectable offline
+  implementation. Deliberately conservative: only ever positively confirms
+  "supported" from a located quote, "contradicted" from an explicit
+  numeric/date mismatch or an explicit negation in a competing retrieved
+  chunk — everything requiring real semantic entailment is reported
+  "insufficient" rather than guessed.
+- `postgres_graph_rag.model_verifier.ModelEntailmentVerifier`: batched
+  model entailment layered on top of the deterministic layers — only
+  claims the deterministic layer genuinely can't decide reach the model,
+  one bounded provider call per answer, server-side validation of every
+  model-proposed quote (a claimed quote absent from the cited evidence is
+  rejected, never trusted), confidence treated as uncalibrated metadata,
+  any provider failure raising `VerifierUnavailableError` for the whole
+  batch rather than a silent partial substitution.
+- `TenantGraphRAG.answer(..., grounding_mode=...)`: `"citation_only"`
+  (default, today's unchanged behavior), `"verified"` (drops claims the
+  verifier can't confirm, keeps the rest), `"verified_strict"` (abstains
+  the whole answer if any claim isn't fully supported). A verifier failure
+  reports `grounding_status="verification_failed"` and abstains — never
+  silently "verified". `AnswerResult` gains `grounding_mode`,
+  `grounding_status`, `claims`, `verifications` as additive, defaulted
+  fields; existing callers checking only `.grounded`/`.abstain_reason` are
+  unaffected.
+- `benchmarks/grounding/`: a frozen evaluation harness (140 cases, 14
+  categories, `grounding-benchmark-v1-candidate`) built *before* the
+  verifier, plus reviewer tooling (blinded packets, reconciliation) for
+  the independent human review still required before the sealed split is
+  a validated gate — see `benchmarks/grounding/LABELING.md`.
+
+### Measured
+
+- Citation-only baseline: 100% contradicted-claim escape, 81.8% overall
+  unsupported-claim escape (`docs/results/grounding-benchmark-baseline.md`).
+- Deterministic layers alone: both escape rates to 0%, at a documented,
+  expected cost to supported-claim retention (100% → 66.7%, entirely the
+  multi-source compound-claim category, which requires cross-citation
+  entailment no non-model layer can do) —
+  `docs/results/grounding-benchmark-deterministic-verifier.md`.
+- `ModelEntailmentVerifier` is unit-tested (mocked extractor) but has no
+  live-provider benchmark run yet — needs real API credentials this
+  environment doesn't have.
+
 ## 0.1.0 — Project consolidation
 
 This release consolidates the current project direction under Ayush Mishra's

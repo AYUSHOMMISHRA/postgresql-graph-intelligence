@@ -229,6 +229,51 @@ ingested, so a later retry of the same source will retry just that chunk.
 > needs a `documents`/`chunks`/`mentions` evidence schema, which is a bigger,
 > deliberately-deferred change rather than a quick patch.
 
+### 7. Grounding modes: entailment verification, not just citation validity
+
+`answer()`'s default behavior (`grounding_mode="citation_only"`, unchanged)
+checks that every citation marker names a chunk that was actually
+retrieved — never whether that chunk's text *supports* the claim it's
+attached to. A reversed relationship, a swapped predicate, or a wrong
+number can all cite real evidence and still pass. Two additional modes
+run each sentence's claim through an entailment verifier instead:
+
+```python
+result = await engine.answer(
+    "What does checkout-service depend on?",
+    namespace="architecture",
+    grounding_mode="verified",  # or "verified_strict"
+)
+result.grounding_status  # "verified" | "partially_verified" | "citation_valid_only"
+                          # | "contradicted" | "insufficient" | "verification_failed" | "abstained"
+result.claims             # the atomic claims the answer was split into
+result.verifications      # each claim's verdict, supporting quote, reason_code
+```
+
+- **`citation_only`** (default): today's behavior, unchanged.
+- **`verified`**: drops claims the verifier can't confirm and keeps the rest — `grounding_status` is `"verified"` if every claim survived, `"partially_verified"` if some were dropped.
+- **`verified_strict`**: abstains the whole answer (the standard "Insufficient evidence..." text) if *any* claim isn't fully supported.
+
+Verification runs in layers, cheapest first, and a claim that's already
+decidable never reaches a model call:
+
+1. Citation existence — the same check `citation_only` does.
+2. Identifier/relevance — does the cited text even mention the claim's named entities?
+3. A located literal (or formatting-normalized) quote, or an explicit numeric/date mismatch, or a negation in some other retrieved chunk — these three can already positively confirm or reject a claim deterministically.
+4. Only a claim none of the above can decide reaches a batched model call — one bounded provider call covering every such claim in the answer, never one call per claim.
+
+A verifier failure (provider error, timeout, malformed response) reports
+`grounding_status="verification_failed"` and abstains — it is never
+silently treated as `"verified"`. Server-side quote validation means a
+model-proposed supporting quote that isn't actually a literal substring of
+the cited evidence is rejected, not trusted.
+
+See `benchmarks/grounding/` for the evaluation harness this was built
+against, and `docs/results/grounding-benchmark-deterministic-verifier.md`
+for a measured before/after: contradicted-claim escape rate 100% → 0% from
+the deterministic layers alone (steps 1-3 above), at an expected,
+documented cost to recall that the model layer (step 4) exists to recover.
+
 ---
 
 ## Benchmarks

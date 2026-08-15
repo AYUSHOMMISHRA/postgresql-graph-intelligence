@@ -18,10 +18,17 @@ from typing import Any, Callable, Dict, List, Optional
 import psycopg
 
 from .extractor import LLMExtractor
+from .grounding import AnswerClaim, GroundingMode, validate_grounding_mode
 from .models import IngestionConfig, RetrievalConfig
 from .observability import EventBus, NULL_EVENT_BUS, new_correlation_id
 from . import observability as obs
 from .tenancy import DEFAULT_LEASE_SECONDS, SecureGraphStore, content_hash
+
+# .verification and .model_verifier are deliberately NOT imported here at
+# module level: both import TenantRetrievedChunk/_citation_marker/etc. FROM
+# this module, so a top-level import here would be circular. answer()
+# imports what it needs from them locally instead -- the same pattern
+# tenancy.py's migrate_schema() already uses for its own module-load cycle.
 
 logger = logging.getLogger("postgres_graph_rag")
 
@@ -113,6 +120,23 @@ class AnswerResult:
     #                                one that doesn't match retrieved evidence
     #   "model_abstained"          — model itself returned the abstention text
     abstain_reason: Optional[str] = None
+    # Everything below is new, additive, and defaulted specifically so
+    # existing callers/tests built against the fields above are completely
+    # unaffected. `grounding_mode` defaults to "citation_only" -- today's
+    # only behavior -- so answer() is fully backward compatible unless a
+    # caller explicitly opts into "verified"/"verified_strict".
+    grounding_mode: GroundingMode = "citation_only"
+    # The richer status behind `grounded`/`abstain_reason` above -- see
+    # grounding.GroundingStatus for the full state list. Set for every
+    # grounding_mode (not just verified/verified_strict), so a caller can
+    # migrate to checking this instead of the bool+string pair without
+    # switching modes first.
+    grounding_status: Optional[str] = None
+    # Populated only for verified/verified_strict modes -- the atomic
+    # claims this answer was split into, and each one's verdict. Empty for
+    # citation_only (no per-claim splitting happens in that mode).
+    claims: List[AnswerClaim] = field(default_factory=list)
+    verifications: List[Any] = field(default_factory=list)  # List[ClaimVerification]
 
 
 @dataclass
@@ -203,6 +227,41 @@ def _normalize_identifier(text: str) -> str:
     stricter than the anti-hallucination guarantee it's meant to enforce.
     """
     return re.sub(r"[-_.]+", " ", text.lower())
+
+
+_CLAIM_SPLIT_RE = re.compile(r"(.+?[.!?])((?:\s*\[[^\[\]\n]+#\d+\])+)", re.DOTALL)
+
+
+def _split_generated_into_claims(generated: str) -> List[AnswerClaim]:
+    """Splits a citation-annotated generated answer into per-sentence
+    claims for the verified/verified_strict grounding modes. Each match is
+    "some sentence ending in ./!/?" immediately followed by one or more
+    citation markers -- the exact shape the answer prompt ("every factual
+    sentence must end with one or more citation markers exactly as shown")
+    asks the model to produce, so no separate structured-claims generation
+    call is needed; this reinterprets the same generation the
+    `citation_only` path already uses.
+
+    Falls back to treating the *entire* text as one claim (with every
+    marker found anywhere in it attached) when the per-sentence pattern
+    finds nothing -- a model that doesn't reliably keep markers immediately
+    after the sentence they support shouldn't turn into an incorrectly
+    "abstained" verdict for otherwise well-cited text; it should still get
+    a chance at one, coarser claim instead.
+    """
+    claims: List[AnswerClaim] = []
+    for i, m in enumerate(_CLAIM_SPLIT_RE.finditer(generated)):
+        text = m.group(1).strip()
+        markers = re.findall(r"\[[^\[\]\n]+#\d+\]", m.group(2))
+        if text and markers:
+            claims.append(AnswerClaim(id=f"claim-{i}", text=text, citation_ids=markers))
+    if claims:
+        return claims
+
+    markers = re.findall(r"\[[^\[\]\n]+#\d+\]", generated)
+    if markers and generated.strip():
+        return [AnswerClaim(id="claim-0", text=generated.strip(), citation_ids=markers)]
+    return []
 
 
 def _graph_seed_chunks(
@@ -1154,7 +1213,8 @@ class TenantGraphRAG:
         return TenantRetrievalResult(chunks=chunks, nodes=nodes, edges=edges, trace=trace)
 
     async def answer(
-        self, question: str, namespace: str, max_answer_tokens: int = 1500, **overrides: Any
+        self, question: str, namespace: str, max_answer_tokens: int = 1500,
+        grounding_mode: GroundingMode = "citation_only", **overrides: Any,
     ) -> AnswerResult:
         """Generate a citation-validated answer from retrieved evidence.
 
@@ -1175,15 +1235,39 @@ class TenantGraphRAG:
         wrong, but because it never got to emit any visible text at all.
         `finish_reason` was still "stop", not "length", so this isn't even
         detectable from that field alone.
+
+        `grounding_mode` (default `"citation_only"`, today's only behavior,
+        unchanged): checking that a citation marker names a retrieved
+        chunk, never whether that chunk's text actually supports the
+        claim it's attached to. `"verified"` and `"verified_strict"` run
+        each sentence's claim through `ModelEntailmentVerifier` (itself
+        layered on `DeterministicVerifier`'s citation/identifier/quote/
+        conflict checks first) — see `postgres_graph_rag.verification`/
+        `postgres_graph_rag.model_verifier`. `"verified"` drops unsupported
+        claims and keeps the rest; `"verified_strict"` abstains the whole
+        answer if any claim isn't fully supported. A verifier failure
+        (provider error, timeout, malformed response) reports
+        `grounding_status="verification_failed"` and abstains — it is never
+        silently treated as "verified" or as "citation_only" success.
         """
+        # .verification/.model_verifier imported locally to avoid the
+        # module-load cycle noted at the top of this file — see the import
+        # block comment there for why.
+        from .grounding import VerifierUnavailableError
+        from .model_verifier import ModelEntailmentVerifier
+        from .verification import evaluate_policy, render_answer
+
+        mode = validate_grounding_mode(grounding_mode)
+        abstain_text = "Insufficient evidence to answer from the indexed sources."
         started = time.perf_counter()
         retrieval = await self.retrieve(question, namespace, **overrides)
         if not retrieval.chunks:
             return AnswerResult(
-                answer="Insufficient evidence to answer from the indexed sources.",
+                answer=abstain_text,
                 citations=[], retrieval=retrieval, grounded=False, usage={},
                 latency_ms=(time.perf_counter() - started) * 1000,
                 abstain_reason="no_evidence_retrieved",
+                grounding_mode=mode, grounding_status="abstained",
             )
 
         evidence = "\n".join(
@@ -1207,10 +1291,11 @@ class TenantGraphRAG:
                 attributes={"grounded": False, "citation_count": 0, "reason": "missing_query_anchor"},
             ))
             return AnswerResult(
-                answer="Insufficient evidence to answer from the indexed sources.",
+                answer=abstain_text,
                 citations=[], retrieval=retrieval, grounded=False, usage={},
                 latency_ms=latency_ms,
                 abstain_reason="missing_query_anchor",
+                grounding_mode=mode, grounding_status="abstained",
             )
         prompt = (
             "Answer the question using only the evidence below. Every factual "
@@ -1236,46 +1321,126 @@ class TenantGraphRAG:
             usage = dict(self._extractor.last_usage or {})
         raw_response = generated  # kept only for length/diagnostics below, never persisted verbatim
         allowed = {_citation_marker(c): c for c in retrieval.chunks}
-        markers = re.findall(r"\[[^\[\]\n]+#\d+\]", generated)
-        invalid = [marker for marker in markers if marker not in allowed]
-        abstained = generated == "Insufficient evidence to answer from the indexed sources."
-        grounded = bool(markers) and not invalid and not abstained
-        if grounded:
-            abstain_reason = None
-        elif abstained:
-            abstain_reason = "model_abstained"
-        elif not raw_response:
-            # Distinct from a non-empty-but-badly-cited response: an empty
-            # completion from a reasoning-tier model usually means the
-            # completion-token budget was consumed entirely by invisible
-            # reasoning tokens before any visible answer text — the fix is
-            # raising max_answer_tokens, not a prompt/citation-format change.
-            abstain_reason = "empty_model_response"
-            generated = "Insufficient evidence to answer from the indexed sources."
-        else:
-            abstain_reason = "invalid_or_missing_citation"
-            generated = "Insufficient evidence to answer from the indexed sources."
 
+        if mode == "citation_only":
+            markers = re.findall(r"\[[^\[\]\n]+#\d+\]", generated)
+            invalid = [marker for marker in markers if marker not in allowed]
+            abstained = generated == abstain_text
+            grounded = bool(markers) and not invalid and not abstained
+            if grounded:
+                abstain_reason = None
+                grounding_status = "citation_valid_only"
+            elif abstained:
+                abstain_reason = "model_abstained"
+                grounding_status = "abstained"
+            elif not raw_response:
+                # Distinct from a non-empty-but-badly-cited response: an empty
+                # completion from a reasoning-tier model usually means the
+                # completion-token budget was consumed entirely by invisible
+                # reasoning tokens before any visible answer text — the fix is
+                # raising max_answer_tokens, not a prompt/citation-format change.
+                abstain_reason = "empty_model_response"
+                generated = abstain_text
+                grounding_status = "abstained"
+            else:
+                abstain_reason = "invalid_or_missing_citation"
+                generated = abstain_text
+                grounding_status = "insufficient"
+
+            citations = [
+                Citation(
+                    source_id=allowed[m].source_id or allowed[m].document_id,
+                    chunk_id=allowed[m].id,
+                    ordinal=allowed[m].ordinal,
+                    excerpt=allowed[m].content[:240],
+                )
+                for m in dict.fromkeys(markers)
+                if m in allowed and grounded
+            ]
+            latency_ms = (time.perf_counter() - started) * 1000
+            attrs: Dict[str, Any] = {
+                "grounded": grounded,
+                "citation_count": len(citations),
+                "model": self._extractor.config["extraction_model"],
+                "retried_with_larger_budget": retried_with_larger_budget,
+            }
+            if not grounded:
+                attrs["reason"] = abstain_reason
+                attrs["raw_response_length"] = len(raw_response)  # length only, never the text itself
+            if usage:
+                attrs["tokens"] = usage.get("total_tokens", 0)
+            await self._event_bus.emit(obs.Event(
+                obs.ANSWER_COMPLETED, new_correlation_id(), str(self.tenant_id), namespace,
+                duration_ms=latency_ms, attributes=attrs,
+            ))
+            return AnswerResult(
+                answer=generated, citations=citations, retrieval=retrieval,
+                grounded=grounded, usage=usage, latency_ms=latency_ms,
+                abstain_reason=abstain_reason,
+                grounding_mode=mode, grounding_status=grounding_status,
+            )
+
+        # mode == "verified" or "verified_strict"
+        abstained = generated == abstain_text
+        if not raw_response or abstained:
+            abstain_reason = "empty_model_response" if not raw_response else "model_abstained"
+            latency_ms = (time.perf_counter() - started) * 1000
+            await self._event_bus.emit(obs.Event(
+                obs.ANSWER_COMPLETED, new_correlation_id(), str(self.tenant_id), namespace,
+                duration_ms=latency_ms,
+                attributes={"grounded": False, "citation_count": 0, "reason": abstain_reason, "grounding_mode": mode},
+            ))
+            return AnswerResult(
+                answer=abstain_text, citations=[], retrieval=retrieval, grounded=False, usage=usage,
+                latency_ms=latency_ms, abstain_reason=abstain_reason,
+                grounding_mode=mode, grounding_status="abstained",
+            )
+
+        claims = _split_generated_into_claims(generated)
+        verifications: List[Any] = []
+        if not claims:
+            grounding_status = "abstained"
+            final_answer = abstain_text
+        else:
+            verifier = ModelEntailmentVerifier(self._extractor, retrieval.chunks)
+            try:
+                verifications = await verifier.verify(claims)
+                grounding_status = evaluate_policy(claims, verifications, mode)
+            except VerifierUnavailableError:
+                grounding_status = "verification_failed"
+                verifications = []
+            final_answer = (
+                abstain_text if grounding_status == "verification_failed"
+                else render_answer(claims, verifications, grounding_status)
+            )
+
+        verifications_by_id = {v.claim_id: v for v in verifications}
+        surviving_ids = {
+            cid for cid, v in verifications_by_id.items() if v.verdict == "supported"
+        } if grounding_status in ("verified", "partially_verified") else set()
         citations = [
             Citation(
                 source_id=allowed[m].source_id or allowed[m].document_id,
-                chunk_id=allowed[m].id,
-                ordinal=allowed[m].ordinal,
-                excerpt=allowed[m].content[:240],
+                chunk_id=allowed[m].id, ordinal=allowed[m].ordinal, excerpt=allowed[m].content[:240],
             )
-            for m in dict.fromkeys(markers)
-            if m in allowed and grounded
+            for claim in claims if claim.id in surviving_ids
+            for m in dict.fromkeys(claim.citation_ids) if m in allowed
         ]
+        grounded = grounding_status in ("verified", "partially_verified", "citation_valid_only")
+        abstain_reason = None if grounded else grounding_status
+
         latency_ms = (time.perf_counter() - started) * 1000
-        attrs: Dict[str, Any] = {
+        attrs = {
             "grounded": grounded,
             "citation_count": len(citations),
             "model": self._extractor.config["extraction_model"],
             "retried_with_larger_budget": retried_with_larger_budget,
+            "grounding_mode": mode,
+            "grounding_status": grounding_status,
+            "claim_count": len(claims),
         }
         if not grounded:
             attrs["reason"] = abstain_reason
-            attrs["raw_response_length"] = len(raw_response)  # length only, never the text itself
         if usage:
             attrs["tokens"] = usage.get("total_tokens", 0)
         await self._event_bus.emit(obs.Event(
@@ -1283,7 +1448,9 @@ class TenantGraphRAG:
             duration_ms=latency_ms, attributes=attrs,
         ))
         return AnswerResult(
-            answer=generated, citations=citations, retrieval=retrieval,
+            answer=final_answer, citations=citations, retrieval=retrieval,
             grounded=grounded, usage=usage, latency_ms=latency_ms,
             abstain_reason=abstain_reason,
+            grounding_mode=mode, grounding_status=grounding_status,
+            claims=claims, verifications=verifications,
         )
