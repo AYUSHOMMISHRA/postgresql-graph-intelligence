@@ -54,6 +54,12 @@ class VerificationTelemetry:
         self.latency_ms: Optional[float] = None
         self.usage: Optional[Dict[str, int]] = None
         self.model_call_made: bool = False
+        # Set True the moment a call is *attempted*, before model_call_made
+        # (which only becomes True on success) -- lets a caller distinguish
+        # "no model call was needed at all" from "a call was needed and
+        # failed", which model_call_made alone can't: it stays False in
+        # both cases.
+        self.model_call_attempted: bool = False
 
     def estimated_cost_usd(
         self, cost_per_1k_prompt_tokens: float, cost_per_1k_completion_tokens: float,
@@ -119,6 +125,7 @@ class ModelEntailmentVerifier:
 
         prompt = _format_claims_prompt(needs_model, self._evidence_by_marker)
         started = time.perf_counter()
+        self.last_telemetry.model_call_attempted = True
         try:
             model_verdicts = await self._extractor.verify_claims(prompt)
         except Exception as exc:

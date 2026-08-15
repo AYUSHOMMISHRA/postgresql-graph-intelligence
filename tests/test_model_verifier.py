@@ -194,6 +194,20 @@ async def test_provider_failure_raises_verifier_unavailable_error():
     )
     with pytest.raises(VerifierUnavailableError, match="simulated provider outage"):
         await verifier.verify([claim])
+    # A call was attempted even though it failed -- distinct from "no model
+    # call was needed at all" (both leave model_call_made False).
+    assert verifier.last_telemetry.model_call_attempted is True
+    assert verifier.last_telemetry.model_call_made is False
+
+
+@pytest.mark.asyncio
+async def test_model_call_not_attempted_when_deterministically_decidable():
+    evidence = [chunk("doc-1", 0, "Acme makes Widgets.")]
+    extractor = FakeExtractor()
+    verifier = ModelEntailmentVerifier(extractor=extractor, evidence=evidence)
+    claim = AnswerClaim(id="c1", text="Acme makes Widgets.", citation_ids=[marker("doc-1", 0)])
+    await verifier.verify([claim])
+    assert verifier.last_telemetry.model_call_attempted is False
 
 
 @pytest.mark.asyncio

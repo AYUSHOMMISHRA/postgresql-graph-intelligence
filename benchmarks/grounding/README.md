@@ -21,6 +21,7 @@ strengths.
 | `gates.py` | Release 2 acceptance gates, frozen before any sealed-split run. |
 | `baseline_runner.py` | Runs the *current* citation-only validator against the dataset and reports gate metrics. |
 | `deterministic_runner.py` | Runs `postgres_graph_rag.verification.DeterministicVerifier` (PR 3's non-model layers) against the dataset for a before/after comparison. |
+| `model_verifier_runner.py` | Runs `postgres_graph_rag.model_verifier.ModelEntailmentVerifier` (PR 4) against the dataset; `--simulate-failure` measures failure-handling without real credentials, JSON/Markdown output, `--fail-on-gate` exit code. |
 | `reviewer_packets.py` | Produces a blinded (answer-key-stripped) worksheet for one human reviewer. |
 | `reconcile_reviews.py` | Compares two completed reviewer worksheets, reports agreement, writes agreed labels. |
 | `fabrication_fixtures.py` / `fabrication_fixtures.json` | Real-quote/fabricated-quote pairs for a future verifier's quote-validation layer. |
@@ -35,6 +36,7 @@ strengths.
 | `../../tests/test_grounding_verification.py` | Tests for the PR 3 deterministic layers (stale evidence, invalid citations, reversed relationships, conflicts, partial support, fabricated quotes, policy evaluation, rendering). |
 | `../../tests/test_model_verifier.py` | Tests for PR 4 (`ModelEntailmentVerifier`), all against a mocked extractor -- deterministic-first short-circuiting, fabricated-quote rejection, provider-failure handling, telemetry. |
 | `../../tests/test_extractor.py` | Includes tests for `LLMExtractor.verify_claims()`'s OpenAI/Google structured-output plumbing. |
+| `../../tests/test_model_verifier_runner.py` | Tests for `model_verifier_runner.py` against `AlwaysFailingExtractor` -- gate computation, exit-code behavior, Markdown/JSON output, no real provider anywhere. |
 
 ## Regenerating `cases.json`
 
@@ -68,20 +70,42 @@ the recorded result: contradicted/unsupported-claim escape closes to 0%
 with no model call, at a documented, expected cost to supported-claim
 retention that PR 4 (batched model entailment) is scoped to recover.
 
-## PR 4 status: implemented and unit-tested, no live-provider benchmark run yet
+## PR 4/6 status: `model_verifier_runner.py` built and tested, no live-provider run yet
 
-`ModelEntailmentVerifier` (`../../postgres_graph_rag/model_verifier.py`) is
-implemented and has 9 tests plus 7 provider-plumbing tests in
-`test_extractor.py`, all against a mocked extractor — no real API key or
-network call. What's still missing before this PR's own before/after
-result can be recorded the way PR 3's was: an actual run against a real
-OpenAI or Gemini API key, which costs real money and needs credentials
-this environment doesn't have. That run — `deterministic_runner.py`'s
-result vs. a new `model_verifier_runner.py` (not yet written) against the
+`ModelEntailmentVerifier` (`../../postgres_graph_rag/model_verifier.py`) and
+its runner (`model_verifier_runner.py`) are implemented and tested — 9 +
+2 tests in `test_model_verifier.py`, 7 provider-plumbing tests in
+`test_extractor.py`, 10 runner tests in `test_model_verifier_runner.py` —
+all against a mocked or `AlwaysFailingExtractor` stand-in, never a real
+provider:
+
+```bash
+# No credentials needed -- measures verifier_failure_safely_represented_rate
+python -m benchmarks.grounding.model_verifier_runner --simulate-failure --split sealed
+```
+
+What's still missing before this PR's own before/after result can be
+recorded the way PR 3's was: an actual run against a real OpenAI or Gemini
+API key, which costs real money and needs credentials this environment
+doesn't have:
+
+```bash
+OPENAI_API_KEY=... python -m benchmarks.grounding.model_verifier_runner \
+    --provider openai --split sealed --fail-on-gate \
+    --cost-per-1k-prompt-tokens <rate> --cost-per-1k-completion-tokens <rate> \
+    --markdown-out docs/results/grounding-benchmark-model-verifier.md
+```
+
+That run — `deterministic_runner.py`'s result vs. this one against the
 sealed split, with a real `LLMExtractor` — is the natural follow-up once
 credentials are available, and belongs in its own
 `docs/results/grounding-benchmark-model-verifier.md` alongside real
-latency/cost/token numbers, not estimated ones.
+latency/cost/token numbers, not estimated ones. `fabricated_quote_rejection_rate`
+and `human_verifier_agreement_rate` stay N/A even then — the former needs
+a real model's own proposed quote to test rejection against (this runner
+doesn't fabricate output on the model's behalf), the latter needs the
+sealed split's independent human review (see below), which is
+orthogonal to having API credentials.
 
 ## Getting the sealed split independently reviewed
 
