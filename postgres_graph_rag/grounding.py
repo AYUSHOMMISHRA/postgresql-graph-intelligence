@@ -56,6 +56,8 @@ ReasonCode = Literal[
     "evidence_insufficient",
     "partial_multi_source_support",
     "requires_unstated_transitive_inference",
+    "model_entailment_supported",
+    "model_entailment_contradicted",
 ]
 
 _VALID_REASON_CODES = frozenset(ReasonCode.__args__)  # type: ignore[attr-defined]
@@ -169,6 +171,19 @@ class VerifiedAnswerResult:
 # ----------------------------------------------------------------------
 # Verifier interface
 # ----------------------------------------------------------------------
+
+
+class VerifierUnavailableError(Exception):
+    """A verifier's own failure -- provider error, timeout, malformed
+    response -- as opposed to the verifier running successfully and
+    finding a claim unsupported. Callers must map this to
+    `grounding_status = "verification_failed"`, never silently treat it as
+    any other status: see the Release 2 plan's "never silently claim
+    verification" constraint. Was originally sketched as a placeholder in
+    benchmarks/grounding/verifier_fixtures.py ahead of PR 4 implementing a
+    real verifier; this is now the one definition both the fixtures and
+    postgres_graph_rag.model_verifier.ModelEntailmentVerifier raise/catch.
+    """
 
 
 @runtime_checkable

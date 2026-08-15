@@ -24,13 +24,17 @@ strengths.
 | `reviewer_packets.py` | Produces a blinded (answer-key-stripped) worksheet for one human reviewer. |
 | `reconcile_reviews.py` | Compares two completed reviewer worksheets, reports agreement, writes agreed labels. |
 | `fabrication_fixtures.py` / `fabrication_fixtures.json` | Real-quote/fabricated-quote pairs for a future verifier's quote-validation layer. |
-| `verifier_fixtures.py` | Stub verifiers (raising, timing out, malformed response) for a future verifier's failure-handling tests (PR 4/5). |
-| `../../postgres_graph_rag/grounding.py` | PR 2: the verification contract types (`AnswerClaim`, `ClaimVerification`, `VerifiedAnswerResult`, `Verifier` protocol, `GroundingMode`). |
+| `verifier_fixtures.py` | Stub verifiers (raising, timing out, malformed response) for a verifier's failure-handling tests -- used by both `test_grounding_fixtures.py` and `test_model_verifier.py`. |
+| `../../postgres_graph_rag/grounding.py` | PR 2: the verification contract types (`AnswerClaim`, `ClaimVerification`, `VerifiedAnswerResult`, `Verifier` protocol, `VerifierUnavailableError`, `GroundingMode`). |
 | `../../postgres_graph_rag/verification.py` | PR 3: the deterministic (non-model) verification layers, including `DeterministicVerifier`. |
+| `../../postgres_graph_rag/model_verifier.py` | PR 4: `ModelEntailmentVerifier` -- batched model entailment layered on top of PR 3, one bounded provider call per answer, server-side quote validation, `VerifierUnavailableError` on any provider failure. |
+| `../../postgres_graph_rag/extractor.py` | `LLMExtractor.verify_claims()` -- the provider-specific (OpenAI/Google) structured-output plumbing `ModelEntailmentVerifier` calls, alongside the pre-existing `extract_triplets()`. |
 | `../../tests/test_grounding_benchmark.py` | Committed integrity tests for `cases.json` (schema shape, unique ids, exact counts, literal-substring quotes, reproducibility). |
 | `../../tests/test_grounding_fixtures.py` | Committed integrity tests for the fabrication/verifier fixtures. |
 | `../../tests/test_grounding_contract.py` | Tests for the PR 2 contract types. |
 | `../../tests/test_grounding_verification.py` | Tests for the PR 3 deterministic layers (stale evidence, invalid citations, reversed relationships, conflicts, partial support, fabricated quotes, policy evaluation, rendering). |
+| `../../tests/test_model_verifier.py` | Tests for PR 4 (`ModelEntailmentVerifier`), all against a mocked extractor -- deterministic-first short-circuiting, fabricated-quote rejection, provider-failure handling, telemetry. |
+| `../../tests/test_extractor.py` | Includes tests for `LLMExtractor.verify_claims()`'s OpenAI/Google structured-output plumbing. |
 
 ## Regenerating `cases.json`
 
@@ -63,6 +67,21 @@ See `../../docs/results/grounding-benchmark-deterministic-verifier.md` for
 the recorded result: contradicted/unsupported-claim escape closes to 0%
 with no model call, at a documented, expected cost to supported-claim
 retention that PR 4 (batched model entailment) is scoped to recover.
+
+## PR 4 status: implemented and unit-tested, no live-provider benchmark run yet
+
+`ModelEntailmentVerifier` (`../../postgres_graph_rag/model_verifier.py`) is
+implemented and has 9 tests plus 7 provider-plumbing tests in
+`test_extractor.py`, all against a mocked extractor — no real API key or
+network call. What's still missing before this PR's own before/after
+result can be recorded the way PR 3's was: an actual run against a real
+OpenAI or Gemini API key, which costs real money and needs credentials
+this environment doesn't have. That run — `deterministic_runner.py`'s
+result vs. a new `model_verifier_runner.py` (not yet written) against the
+sealed split, with a real `LLMExtractor` — is the natural follow-up once
+credentials are available, and belongs in its own
+`docs/results/grounding-benchmark-model-verifier.md` alongside real
+latency/cost/token numbers, not estimated ones.
 
 ## Getting the sealed split independently reviewed
 

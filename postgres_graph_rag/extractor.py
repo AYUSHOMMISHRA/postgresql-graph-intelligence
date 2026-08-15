@@ -1,5 +1,5 @@
 import contextvars
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 import openai
 from google import genai
@@ -42,6 +42,52 @@ class Triplet(BaseModel):
 
 class ExtractionResult(BaseModel):
     triplets: List[Triplet]
+
+
+class ModelVerdict(BaseModel):
+    """One claim's verdict from a batched entailment-verification call.
+    `supporting_quote` is requested as exact copied text, never an offset
+    (the plan's "do not trust model-supplied character offsets" constraint)
+    -- the caller (postgres_graph_rag.model_verifier.ModelEntailmentVerifier)
+    is responsible for locating it server-side and rejecting the verdict
+    if it isn't actually found in the cited evidence."""
+
+    claim_id: str = Field(..., description="Must exactly match one of the input claim ids.")
+    verdict: Literal["supported", "contradicted", "insufficient"]
+    supporting_quote: Optional[str] = Field(
+        None,
+        description=(
+            "The exact text, copied verbatim from the cited evidence, that supports or "
+            "contradicts the claim. Copy it exactly -- do not paraphrase, summarize, or "
+            "correct spelling/punctuation. Omit entirely if verdict is 'insufficient'."
+        ),
+    )
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0,
+        description="Your confidence in this verdict from 0.0 to 1.0. This is not a calibrated probability.",
+    )
+
+
+class VerificationBatchResult(BaseModel):
+    verdicts: List[ModelVerdict]
+
+
+_VERIFICATION_SYSTEM_PROMPT = (
+    "You are a strict fact-checker. You will be given a list of claims, each with one or "
+    "more cited evidence passages. For EACH claim, decide whether the cited evidence "
+    "entails it:\n\n"
+    "- 'supported': the cited evidence, taken at face value, entails the claim.\n"
+    "- 'contradicted': the cited evidence addresses the same subject but asserts something "
+    "different (reversed relationship, different predicate, different number/date, etc.)\n"
+    "- 'insufficient': the cited evidence doesn't address the claim at all, or only "
+    "partially supports a compound claim.\n\n"
+    "Judge only what the evidence says -- do not use outside knowledge about whether a "
+    "claim is plausible or true in reality. For 'supported' or 'contradicted' verdicts, "
+    "copy a short supporting_quote EXACTLY from the cited evidence text (verbatim, do not "
+    "paraphrase) -- it will be rejected if it is not found in the evidence. Return exactly "
+    "one verdict per input claim, using the same claim_id."
+)
+
 
 class LLMExtractor:
     def __init__(
@@ -161,6 +207,65 @@ class LLMExtractor:
             )
 
         return response.parsed.triplets
+
+    async def verify_claims(self, claims_prompt: str) -> List[ModelVerdict]:
+        """Runs one batched entailment-verification call covering every
+        claim in `claims_prompt` -- the caller (typically
+        postgres_graph_rag.model_verifier.ModelEntailmentVerifier) is
+        responsible for formatting claims + their cited evidence into one
+        prompt body, and for server-side validating each returned
+        supporting_quote against the actual evidence text; this method's
+        job is only running the one provider call and parsing its
+        structured output, exactly like extract_triplets()'s split of
+        responsibility."""
+        model = self.config["extraction_model"]
+        if "gpt" in model and self.openai_client:
+            return await self._verify_openai(claims_prompt)
+        elif "gemini" in model and self.google_client:
+            return await self._verify_google(claims_prompt)
+        else:
+            raise ValueError(f"Model {model} not supported or API key missing.")
+
+    async def _verify_openai(self, claims_prompt: str) -> List[ModelVerdict]:
+        completion = await self.openai_client.beta.chat.completions.parse(
+            model=self.config["extraction_model"],
+            messages=[
+                {"role": "system", "content": _VERIFICATION_SYSTEM_PROMPT},
+                {"role": "user", "content": claims_prompt},
+            ],
+            response_format=VerificationBatchResult,
+        )
+        self._set_openai_usage(completion.usage)
+        return completion.choices[0].message.parsed.verdicts
+
+    async def _verify_google(self, claims_prompt: str) -> List[ModelVerdict]:
+        response = await self.google_client.models.generate_content(
+            model=self.config["extraction_model"],
+            contents=[_VERIFICATION_SYSTEM_PROMPT, claims_prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=VerificationBatchResult,
+            ),
+        )
+        self._set_google_usage(response.usage_metadata)
+
+        block_reason = response.prompt_feedback.block_reason if response.prompt_feedback else None
+        if block_reason:
+            raise ExtractionRefusedError(
+                f"Gemini blocked the entire verification prompt before generation: block_reason={block_reason!r}"
+            )
+        if not response.candidates:
+            raise ExtractionRefusedError("Gemini returned no candidates (empty response) for verification.")
+        finish_reason = response.candidates[0].finish_reason
+        if finish_reason != types.FinishReason.STOP:
+            raise ExtractionRefusedError(
+                f"Gemini did not cleanly stop during verification: finish_reason={finish_reason!r}"
+            )
+        if not response.parsed:
+            raise ExtractionRefusedError(
+                "Gemini finished cleanly but produced no parsed structured verification output."
+            )
+        return response.parsed.verdicts
 
     async def generate_text(self, prompt: str, max_tokens: int = 500) -> str:
         """Plain text completion, reusing the same extraction_model/clients

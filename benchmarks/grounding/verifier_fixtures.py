@@ -1,35 +1,33 @@
-"""Fixtures for a future verifier's failure-handling path (PR 4/5 in the
-Release 2 plan: "verifier unavailable -> return verification_failed; never
-silently claim verification"). No verifier interface exists yet (that's
-PR 2's job -- see the CTO plan's ClaimVerification/VerifiedAnswerResult
-types), so this is deliberately minimal: a stub that always fails in each
-of the ways a real provider call can fail, for that future verifier's test
-suite to import and confirm against, rather than each test reinventing its
-own mock.
+"""Fixtures for a verifier's failure-handling path (the Release 2 plan's
+"verifier unavailable -> return verification_failed; never silently claim
+verification"). `postgres_graph_rag.model_verifier.ModelEntailmentVerifier`
+(PR 4) is the real verifier these exist to test against; this module
+provides stubs that always fail in each of the ways a real provider call
+can fail, for any verifier's test suite to import and confirm against
+rather than each test reinventing its own mock.
 
-Usage once a verifier exists (illustrative -- the verifier type doesn't
-exist yet, so this can't be exercised end-to-end today):
+Usage:
 
-    from benchmarks.grounding.verifier_fixtures import RaisingVerifier, TimingOutVerifier
+    from benchmarks.grounding.verifier_fixtures import RaisingVerifier
+    from postgres_graph_rag.grounding import VerifierUnavailableError
 
     async def test_provider_error_reports_verification_failed():
-        result = await answer_with_verifier(question, verifier=RaisingVerifier())
-        assert result.grounding_status == "verification_failed"
-        assert result.grounding_status != "verified"  # never silently fall back to success
+        with pytest.raises(VerifierUnavailableError):
+            await RaisingVerifier().verify([])
 """
 from __future__ import annotations
 
 import asyncio
 from typing import Any, List
 
+from postgres_graph_rag.grounding import VerifierUnavailableError
 
-class VerifierUnavailableError(Exception):
-    """Placeholder for the real exception type PR 2's verifier protocol
-    should define. Using a distinct exception (not a bare RuntimeError)
-    matters: it's what lets calling code distinguish "the verifier itself
-    is broken/unreachable" from "the verifier ran and found a problem",
-    which must be represented as two different grounding_status values,
-    not conflated into one catch-all failure."""
+__all__ = [
+    "VerifierUnavailableError",  # re-exported for callers written against this module before PR 2/4 landed
+    "RaisingVerifier",
+    "TimingOutVerifier",
+    "MalformedResponseVerifier",
+]
 
 
 class RaisingVerifier:

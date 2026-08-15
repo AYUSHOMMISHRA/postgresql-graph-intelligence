@@ -22,6 +22,7 @@ from .grounding import (
     Verdict,
     Verifier,
     VerifiedAnswerResult,
+    VerifierUnavailableError,
 )
 from .verification import (
     DeterministicVerifier,
@@ -29,6 +30,7 @@ from .verification import (
     parse_claims,
     render_answer,
 )
+from .model_verifier import ModelEntailmentVerifier, VerificationTelemetry
 
 __all__ = [
     "PostgresGraphRAG",
@@ -55,8 +57,11 @@ __all__ = [
     "Verdict",
     "Verifier",
     "VerifiedAnswerResult",
+    "VerifierUnavailableError",
     "DeterministicVerifier",
     "evaluate_policy",
     "parse_claims",
     "render_answer",
+    "ModelEntailmentVerifier",
+    "VerificationTelemetry",
 ]
