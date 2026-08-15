@@ -122,6 +122,15 @@ OPENAI_API_KEY=... python -m benchmarks.grounding.model_verifier_runner \
     --markdown-out docs/results/grounding-benchmark-model-verifier.md
 ```
 
+`--reviewed-answer-key` is validated, not merely parsed: it must be for
+the `sealed` split, list exactly two distinct reviewers, have no
+duplicate ids or invalid labels, and cover *exactly* the sealed split's
+28 case ids -- a partial key (even one that happens to agree on every
+case it does cover) is rejected outright, since a key covering 1 of 28
+cases could otherwise report a misleading 100% agreement rate. Any
+violation exits with status 2 and a message on stderr, not a silent
+wrong number or an unhandled traceback.
+
 That run — `deterministic_runner.py`'s result vs. this one against the
 sealed split, with a real `LLMExtractor` — is the natural follow-up once
 credentials are available, and belongs in its own

@@ -2,6 +2,30 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — PR 6 closure: reviewed-answer-key integrity validation
+
+A third correction to `benchmarks/grounding/model_verifier_runner.py`:
+`--reviewed-answer-key` parsed a reconciled-labels file without validating
+it, so a partial, mismatched, or malformed key could silently corrupt
+`human_verifier_agreement_rate` instead of failing loudly -- e.g. a key
+covering 1 of the sealed split's 28 cases would report 100% agreement,
+satisfying `--strict-release-gate` while 27 cases were never reviewed.
+
+### Fixed
+
+- `load_reviewed_answer_key()` now validates the file before use, raising
+  `AnswerKeyError` (surfaced as a clean CLI exit code 2, not a traceback)
+  if: the key's `split` isn't `"sealed"`; it doesn't list exactly two
+  distinct reviewers; any case id is duplicated; any label isn't one of
+  `supported`/`contradicted`/`insufficient`; or its case ids don't exactly
+  equal the sealed split's full id set (missing or extra ids both
+  rejected).
+- `--strict-release-gate` now also requires `--split sealed` and the
+  finalized `grounding-benchmark-v1` dataset version (rejecting the
+  current `...-v1-candidate`) before running anything -- a release
+  decision made against the wrong split or an unreviewed candidate
+  dataset was never a valid one, even before an answer key was involved.
+
 ## Unreleased — PR 6 closure: strict release gate can actually pass
 
 A second correction pass on `benchmarks/grounding/model_verifier_runner.py`,

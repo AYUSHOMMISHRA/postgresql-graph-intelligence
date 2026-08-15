@@ -52,7 +52,12 @@ cased.
 `human_verifier_agreement_rate` is N/A until a `--reviewed-answer-key`
 (the reconciled JSON `reconcile_reviews.py` writes) is supplied -- it
 needs the sealed split's independent human review, which hasn't happened
-yet -- see benchmarks/grounding/LABELING.md.
+yet -- see benchmarks/grounding/LABELING.md. That file is validated, not
+merely parsed (see `load_reviewed_answer_key`): it must be for the
+`sealed` split, list exactly two distinct reviewers, have no duplicate or
+invalid-label entries, and cover exactly the sealed split's case ids --
+otherwise a partial or malformed key could silently inflate the reported
+agreement rate by shrinking its own denominator instead of failing loudly.
 
 A `verification_failed` outcome (provider error/timeout/malformed
 response) is treated as an *incomplete* result for that case, never as
@@ -66,6 +71,10 @@ only an actual FAIL blocks; suitable for iterating against `dev`/
 `calibration`) and `--strict-release-gate` (an N/A verdict blocks too;
 this is the one an actual release go/no-go decision should use, since a
 required gate that was never measured must not silently pass CI).
+`--strict-release-gate` additionally requires `--split sealed` and the
+finalized `grounding-benchmark-v1` dataset (not `...-v1-candidate`) --
+a release decision made against the wrong split or a not-yet-reviewed
+candidate dataset isn't a real release decision.
 """
 import argparse
 import asyncio
@@ -201,22 +210,78 @@ async def run_failure_safety_check(cases: List[Dict[str, Any]]) -> Optional[floa
     return sum(1 for o in model_attempted if o.verification_failed) / len(model_attempted)
 
 
+_VALID_ANSWER_KEY_LABELS = {"supported", "contradicted", "insufficient"}
+
+
+class AnswerKeyError(ValueError):
+    """Raised when a --reviewed-answer-key file fails validation."""
+
+
 def load_reviewed_answer_key(path: Path) -> Dict[str, str]:
-    """Loads a reconciled human answer key in reconcile_reviews.py's output
-    shape ({"reconciled_labels": [{"id":..., "label":...}, ...]}) into a
-    case-id -> label lookup."""
+    """Loads and validates a reconciled human answer key in
+    reconcile_reviews.py's output shape
+    ({"split":..., "reviewers": [...], "reconciled_labels": [{"id":..., "label":...}, ...]})
+    into a case-id -> label lookup.
+
+    Validated, not merely parsed, because a malformed or partial key would
+    otherwise silently corrupt human_verifier_agreement_rate: a key with
+    one matching case out of the sealed split's 28 could report 100%
+    agreement while 27 cases were never actually reviewed. Every check
+    below closes one such silent-corruption path:
+    - wrong split -> a dev/calibration review being mistaken for sealed
+    - fewer than two distinct reviewers -> not an independent review
+    - a duplicate id -> the second entry silently overwriting the first
+    - an invalid label -> a typo silently treated as a valid verdict
+    - missing/extra ids -> a partial or mismatched-dataset key inflating
+      the rate by shrinking its own denominator instead of failing loudly
+    """
     data = json.loads(path.read_text())
-    return {entry["id"]: entry["label"] for entry in data["reconciled_labels"]}
+
+    if data.get("split") != "sealed":
+        raise AnswerKeyError(
+            f"--reviewed-answer-key must be for the sealed split, got {data.get('split')!r}"
+        )
+
+    reviewers = data.get("reviewers", [])
+    if len(reviewers) != 2 or len(set(reviewers)) != 2:
+        raise AnswerKeyError(
+            f"--reviewed-answer-key must list exactly two distinct reviewers, got {reviewers!r}"
+        )
+
+    answer_key: Dict[str, str] = {}
+    for entry in data["reconciled_labels"]:
+        case_id, label = entry["id"], entry["label"]
+        if case_id in answer_key:
+            raise AnswerKeyError(f"--reviewed-answer-key has a duplicate case id: {case_id!r}")
+        if label not in _VALID_ANSWER_KEY_LABELS:
+            raise AnswerKeyError(
+                f"--reviewed-answer-key has an invalid label {label!r} for case {case_id!r} "
+                f"(must be one of {sorted(_VALID_ANSWER_KEY_LABELS)})"
+            )
+        answer_key[case_id] = label
+
+    sealed_ids = {c["id"] for c in load_cases("sealed")}
+    key_ids = set(answer_key)
+    if key_ids != sealed_ids:
+        missing, extra = sorted(sealed_ids - key_ids), sorted(key_ids - sealed_ids)
+        raise AnswerKeyError(
+            "--reviewed-answer-key must cover exactly the sealed split's case ids -- "
+            f"missing {missing}, unexpected {extra}"
+        )
+
+    return answer_key
 
 
 def compute_human_agreement_rate(
     outcomes: List["CaseOutcome"], answer_key: Dict[str, str]
 ) -> Optional[float]:
     """human_verifier_agreement_rate: fraction of resolved cases with a
-    reconciled human label where the verifier's verdict matches it. A case
-    the answer key doesn't cover (e.g. reviewed on a different split) or
-    that verification_failed on is excluded from the denominator, same
-    reasoning as every other rate in compute_metrics."""
+    reconciled human label where the verifier's verdict matches it. A
+    verification_failed case is excluded from the denominator, same
+    reasoning as every other rate in compute_metrics -- but a case simply
+    absent from the answer key is not a normal path here: a validated key
+    (see load_reviewed_answer_key) always covers every sealed case, so
+    this only happens if the primary run's --split wasn't sealed."""
     matched = [o for o in outcomes if not o.verification_failed and o.case["id"] in answer_key]
     if not matched:
         return None
@@ -444,7 +509,26 @@ def required_gates_failed(gates: List[Dict[str, Any]], strict: bool = False) -> 
     return any(g["verdict"] == "FAIL" for g in gates)
 
 
+_FINALIZED_DATASET_VERSION = "grounding-benchmark-v1"
+
+
 async def main_async(args: argparse.Namespace) -> int:
+    if args.strict_release_gate:
+        if args.split != "sealed":
+            print("error: --strict-release-gate requires --split sealed "
+                  f"(got --split {args.split!r})", file=sys.stderr)
+            return 2
+        dataset_version = json.loads(CASES_PATH.read_text())["dataset_version"]
+        if dataset_version != _FINALIZED_DATASET_VERSION:
+            print(
+                f"error: --strict-release-gate requires the finalized dataset "
+                f"{_FINALIZED_DATASET_VERSION!r}, got {dataset_version!r} -- the sealed "
+                "split hasn't been through independent human review and renamed from "
+                "'...-v1-candidate' yet, see benchmarks/grounding/LABELING.md.",
+                file=sys.stderr,
+            )
+            return 2
+
     cases = load_cases(args.split)
 
     if args.simulate_failure:
@@ -456,10 +540,13 @@ async def main_async(args: argparse.Namespace) -> int:
     fabrication_rate = await run_fabrication_check()
     failure_safety_rate = await run_failure_safety_check(cases)
 
-    answer_key = (
-        load_reviewed_answer_key(Path(args.reviewed_answer_key))
-        if args.reviewed_answer_key else None
-    )
+    answer_key = None
+    if args.reviewed_answer_key:
+        try:
+            answer_key = load_reviewed_answer_key(Path(args.reviewed_answer_key))
+        except AnswerKeyError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
     human_agreement_rate = (
         compute_human_agreement_rate(outcomes, answer_key) if answer_key is not None else None
     )
@@ -512,7 +599,11 @@ def main() -> None:
                          help="Path to a reconcile_reviews.py reconciled-labels JSON file "
                               "(e.g. benchmarks/grounding/packets/sealed_reconciled.json). "
                               "Computes human_verifier_agreement_rate against it; omitted, "
-                              "that gate stays N/A.")
+                              "that gate stays N/A. Validated: must be for the sealed split, "
+                              "list exactly two distinct reviewers, have no duplicate or "
+                              "invalid-label entries, and cover exactly the sealed split's "
+                              "case ids -- a malformed or partial key is rejected, not "
+                              "silently accepted.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--markdown-out", default=None, help="Path to write a Markdown report, e.g. "
                          "docs/results/grounding-benchmark-model-verifier.md")
@@ -522,8 +613,9 @@ def main() -> None:
                          help="Exit with status 1 if any gate FAILs OR is N/A, or if any case's "
                               "verification_failed (an incomplete run is not a valid release "
                               "signal) -- for the actual release go/no-go decision, where every "
-                              "required gate must be genuinely measured. Takes precedence over "
-                              "--fail-on-gate if both are given.")
+                              "required gate must be genuinely measured. Requires --split sealed "
+                              "and the finalized grounding-benchmark-v1 dataset (exits 2 "
+                              "otherwise). Takes precedence over --fail-on-gate if both are given.")
     args = parser.parse_args()
 
     exit_code = asyncio.run(main_async(args))

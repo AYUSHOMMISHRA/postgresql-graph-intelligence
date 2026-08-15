@@ -9,6 +9,7 @@ import pytest
 
 from benchmarks.grounding.model_verifier_runner import (
     AlwaysFailingExtractor,
+    AnswerKeyError,
     compute_human_agreement_rate,
     compute_metrics,
     gate_results,
@@ -20,6 +21,18 @@ from benchmarks.grounding.model_verifier_runner import (
     run_failure_safety_check,
     write_markdown_report,
 )
+
+_SEALED_IDS = [c["id"] for c in load_cases("sealed")]
+
+
+def _valid_answer_key_payload(**overrides):
+    payload = {
+        "split": "sealed",
+        "reviewers": ["alice", "bob"],
+        "reconciled_labels": [{"id": cid, "label": "supported"} for cid in _SEALED_IDS],
+    }
+    payload.update(overrides)
+    return payload
 
 
 def _base_args(**overrides):
@@ -226,15 +239,69 @@ def test_required_gates_failed_strict_mode_fails_on_na():
     assert required_gates_failed(gates, strict=True) is True
 
 
-def test_load_reviewed_answer_key_reads_reconciled_labels(tmp_path):
-    path = tmp_path / "sealed_reconciled.json"
-    path.write_text(json.dumps({
-        "split": "sealed", "reviewers": ["alice", "bob"],
-        "reconciled_labels": [{"id": "case-1", "label": "supported"},
-                               {"id": "case-2", "label": "contradicted"}],
-    }))
+def _write_answer_key(tmp_path, payload):
+    path = tmp_path / "answer_key.json"
+    path.write_text(json.dumps(payload))
+    return path
+
+
+def test_load_reviewed_answer_key_reads_full_valid_reconciled_labels(tmp_path):
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload())
     answer_key = load_reviewed_answer_key(path)
-    assert answer_key == {"case-1": "supported", "case-2": "contradicted"}
+    assert set(answer_key) == set(_SEALED_IDS)
+    assert all(label == "supported" for label in answer_key.values())
+
+
+def test_load_reviewed_answer_key_rejects_wrong_split(tmp_path):
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(split="dev"))
+    with pytest.raises(AnswerKeyError, match="sealed split"):
+        load_reviewed_answer_key(path)
+
+
+def test_load_reviewed_answer_key_rejects_single_reviewer(tmp_path):
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(reviewers=["alice"]))
+    with pytest.raises(AnswerKeyError, match="two distinct reviewers"):
+        load_reviewed_answer_key(path)
+
+
+def test_load_reviewed_answer_key_rejects_duplicate_reviewer_names(tmp_path):
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(reviewers=["alice", "alice"]))
+    with pytest.raises(AnswerKeyError, match="two distinct reviewers"):
+        load_reviewed_answer_key(path)
+
+
+def test_load_reviewed_answer_key_rejects_duplicate_case_id(tmp_path):
+    labels = [{"id": cid, "label": "supported"} for cid in _SEALED_IDS]
+    labels.append({"id": _SEALED_IDS[0], "label": "contradicted"})  # duplicate
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(reconciled_labels=labels))
+    with pytest.raises(AnswerKeyError, match="duplicate case id"):
+        load_reviewed_answer_key(path)
+
+
+def test_load_reviewed_answer_key_rejects_invalid_label(tmp_path):
+    labels = [{"id": cid, "label": "supported"} for cid in _SEALED_IDS[:-1]]
+    labels.append({"id": _SEALED_IDS[-1], "label": "definitely-maybe"})
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(reconciled_labels=labels))
+    with pytest.raises(AnswerKeyError, match="invalid label"):
+        load_reviewed_answer_key(path)
+
+
+def test_load_reviewed_answer_key_rejects_missing_case_id(tmp_path):
+    """A partial key -- one matching case out of the full sealed set --
+    must be rejected outright, not silently accepted with a shrunken
+    denominator that could report a misleadingly high agreement rate."""
+    labels = [{"id": _SEALED_IDS[0], "label": "supported"}]
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(reconciled_labels=labels))
+    with pytest.raises(AnswerKeyError, match="missing"):
+        load_reviewed_answer_key(path)
+
+
+def test_load_reviewed_answer_key_rejects_extra_case_id(tmp_path):
+    labels = [{"id": cid, "label": "supported"} for cid in _SEALED_IDS]
+    labels.append({"id": "not-a-real-sealed-case", "label": "supported"})
+    path = _write_answer_key(tmp_path, _valid_answer_key_payload(reconciled_labels=labels))
+    with pytest.raises(AnswerKeyError, match="unexpected"):
+        load_reviewed_answer_key(path)
 
 
 def test_compute_human_agreement_rate_matches_verdict_against_reconciled_label():
@@ -346,28 +413,33 @@ def test_always_failing_extractor_raises():
 
 
 @pytest.mark.asyncio
-async def test_strict_release_gate_fails_on_incomplete_run_even_with_no_reviewed_key(capsys):
+async def test_strict_release_gate_fails_on_incomplete_run_even_with_no_reviewed_key(capsys, monkeypatch):
     """--simulate-failure guarantees verification_failure_count > 0 for the
-    dev split (some cases need the model layer). --strict-release-gate must
-    exit 1 for that reason alone, on top of the existing N/A-gate check --
-    this is the fix for the gap where verification_failure_count was
-    disclosed but never actually gated in strict mode."""
-    exit_code = await main_async(_base_args(strict_release_gate=True))
+    sealed split (some cases need the model layer). --strict-release-gate
+    must exit 1 for that reason alone, on top of the existing N/A-gate
+    check -- this is the fix for the gap where verification_failure_count
+    was disclosed but never actually gated in strict mode. The dataset's
+    still-candidate version is monkeypatched past here since that's a
+    separate check (see test_strict_release_gate_requires_finalized_dataset_version),
+    not what this test is about."""
+    import benchmarks.grounding.model_verifier_runner as runner_module
+    monkeypatch.setattr(runner_module, "_FINALIZED_DATASET_VERSION", "grounding-benchmark-v1-candidate")
+
+    exit_code = await main_async(_base_args(split="sealed", strict_release_gate=True))
     capsys.readouterr()
     assert exit_code == 1
 
 
 @pytest.mark.asyncio
 async def test_reviewed_answer_key_populates_human_agreement_rate(tmp_path, capsys):
-    cases = load_cases("dev")
-    # Build a trivially-agreeing answer key from the constructed labels so
-    # the metric is measurable without needing a real verifier run to
-    # happen to match a hand-picked key.
-    answer_key_path = tmp_path / "dev_reconciled.json"
-    answer_key_path.write_text(json.dumps({
-        "split": "dev", "reviewers": ["alice", "bob"],
+    cases = load_cases("sealed")
+    # Build a fully-covering, trivially-agreeing answer key from the
+    # constructed labels so the metric is measurable without needing a
+    # real verifier run to happen to match a hand-picked key.
+    answer_key_path = _write_answer_key(tmp_path, {
+        "split": "sealed", "reviewers": ["alice", "bob"],
         "reconciled_labels": [{"id": c["id"], "label": c["label"]} for c in cases],
-    }))
+    })
 
     class _AlwaysSucceedsExtractor:
         config = {"extraction_model": "test-model"}
@@ -376,7 +448,8 @@ async def test_reviewed_answer_key_populates_human_agreement_rate(tmp_path, caps
         async def verify_claims(self, prompt):
             return []
 
-    args = _base_args(simulate_failure=False, reviewed_answer_key=str(answer_key_path))
+    args = _base_args(split="sealed", simulate_failure=False,
+                       reviewed_answer_key=str(answer_key_path))
     import benchmarks.grounding.model_verifier_runner as runner_module
     original = runner_module.build_real_extractor
     runner_module.build_real_extractor = lambda provider: _AlwaysSucceedsExtractor()
@@ -387,6 +460,40 @@ async def test_reviewed_answer_key_populates_human_agreement_rate(tmp_path, caps
 
     printed = json.loads(capsys.readouterr().out)
     assert printed["metrics"]["human_verifier_agreement_rate"] is not None
+
+
+@pytest.mark.asyncio
+async def test_reviewed_answer_key_rejected_at_cli_boundary_exits_2(tmp_path, capsys):
+    """load_reviewed_answer_key's AnswerKeyError must surface as a clean
+    CLI failure (exit 2, a message on stderr), not an unhandled
+    traceback."""
+    bad_path = _write_answer_key(tmp_path, _valid_answer_key_payload(split="dev"))
+    exit_code = await main_async(_base_args(
+        split="dev", simulate_failure=True, reviewed_answer_key=str(bad_path),
+    ))
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "sealed split" in captured.err
+
+
+@pytest.mark.asyncio
+async def test_strict_release_gate_requires_split_sealed(capsys):
+    exit_code = await main_async(_base_args(split="dev", strict_release_gate=True))
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "--split sealed" in captured.err
+
+
+@pytest.mark.asyncio
+async def test_strict_release_gate_requires_finalized_dataset_version(capsys):
+    """cases.json is still 'grounding-benchmark-v1-candidate' (see
+    benchmarks/grounding/README.md's Status section) -- --strict-release-gate
+    against --split sealed must reject it rather than treat an
+    unreviewed candidate dataset as a real release decision."""
+    exit_code = await main_async(_base_args(split="sealed", strict_release_gate=True))
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "grounding-benchmark-v1" in captured.err
 
 
 @pytest.mark.asyncio
