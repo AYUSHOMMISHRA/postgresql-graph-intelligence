@@ -2,6 +2,52 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — PR 6 closure: strict release gate can actually pass
+
+A second correction pass on `benchmarks/grounding/model_verifier_runner.py`,
+closing the gap the previous pass left: `--strict-release-gate` was
+structurally incapable of ever passing on a genuine run, because two of
+its required gates were only ever populated by a separate, manually-run
+command.
+
+### Fixed
+
+- **`verifier_failure_safely_represented_rate` is now measured on every
+  run, live or simulated**, via a new `run_failure_safety_check()` that
+  runs a dedicated `AlwaysFailingExtractor` exercise unconditionally --
+  exactly parallel to how `run_fabrication_check()` already runs on every
+  invocation. Previously this gate was `None` on any run that wasn't
+  itself `--simulate-failure`, meaning a real release run against a real
+  provider could never populate it, and `--strict-release-gate` would
+  therefore always see it as N/A and always fail -- defeating the purpose
+  of the strict mode existing at all.
+- **`--strict-release-gate` now also fails when
+  `verification_failure_count > 0`**, independent of the gate-verdict
+  check. A run with real provider outages could previously pass strict
+  mode as long as no gate's own subpopulation happened to include a
+  failed case (e.g. an outage on a `supported`-labeled, correctly-cited
+  case affects none of the gated denominators) -- an incomplete run is
+  not a valid release signal regardless of which gates it touches.
+- **`human_verifier_agreement_rate` is now computable** via a new
+  `--reviewed-answer-key <path>` flag, pointing at a
+  `reconcile_reviews.py`-produced reconciled-labels JSON file. Computes
+  the fraction of resolved cases where the verifier's verdict matches the
+  reconciled human label; stays `None`/N/A when the flag is omitted, same
+  as before.
+
+### Changed
+
+- `.github/workflows/ci.yml`'s `unit` job now runs `uv run pytest -q`
+  (bare) instead of an explicit test-file list, which had drifted behind
+  several suites added for Release 2
+  (`test_grounding_benchmark.py`, `test_grounding_contract.py`,
+  `test_grounding_fixtures.py`, `test_grounding_verification.py`,
+  `test_model_verifier.py`, `test_model_verifier_runner.py`,
+  `test_extractor_generation.py` were never actually run in CI). Safe
+  because `pyproject.toml`'s `addopts` already excludes `live_provider` by
+  default and `test_database.py`/`test_tenancy.py` self-skip without
+  `POSTGRES_URL` (only set in the separate `postgres` job).
+
 ## Unreleased — PR 6 metric correctness fixes, live-provider test isolation
 
 A correction pass on `benchmarks/grounding/model_verifier_runner.py`

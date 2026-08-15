@@ -20,13 +20,15 @@ Requires a real provider to produce a live result:
 Three things can be exercised right now, without any real API key or
 network call, and are covered by tests/test_model_verifier_runner.py:
 
-- `--simulate-failure` runs every case through an extractor whose
-  verify_claims always raises. This is the *only* way
-  verifier_failure_safely_represented_rate is ever computed (see
-  `is_simulated_failure_run` in `compute_metrics`) -- a live run's real
-  failure count is neither controllable nor a meaningful sample, so this
-  metric stays N/A outside `--simulate-failure` even if a live run
-  happens to hit a real outage.
+- `run_failure_safety_check()` runs every case through a dedicated,
+  always-failing extractor and measures
+  `verifier_failure_safely_represented_rate` from that exercise alone --
+  this runs unconditionally on *every* invocation (live or
+  `--simulate-failure`), exactly like `run_fabrication_check()` below,
+  precisely so a genuine release run against a real provider still
+  populates this gate instead of leaving it permanently N/A (which is
+  what happened when this metric was only computed from the primary
+  run's own incidental failures under `--simulate-failure`).
 - `run_fabrication_check()` measures `fabricated_quote_rejection_rate`
   from the existing `fabrication_fixtures.json` pairs on every run
   (live or simulated) -- no real model needed, since a fixture's
@@ -38,9 +40,19 @@ network call, and are covered by tests/test_model_verifier_runner.py:
   `extractor` parameter) instead of going through `main()`'s
   --provider/API-key path, for any other offline simulation.
 
-`human_verifier_agreement_rate` remains N/A here: it needs the sealed
-split's independent human review, which hasn't happened yet -- see
-benchmarks/grounding/LABELING.md.
+`--simulate-failure` still exists to let the *primary* run itself use an
+always-failing extractor (useful for exercising the harness's own
+reporting/exit-code paths without credentials); since every primary-run
+case then fails, every quality gate that depends on a resolved case
+(escape/retention/rejection rates) correctly reports N/A rather than a
+misleading number -- this is a natural consequence of excluding
+`verification_failed` cases from every rate's denominator, not special
+cased.
+
+`human_verifier_agreement_rate` is N/A until a `--reviewed-answer-key`
+(the reconciled JSON `reconcile_reviews.py` writes) is supplied -- it
+needs the sealed split's independent human review, which hasn't happened
+yet -- see benchmarks/grounding/LABELING.md.
 
 A `verification_failed` outcome (provider error/timeout/malformed
 response) is treated as an *incomplete* result for that case, never as
@@ -169,6 +181,48 @@ async def run_fabrication_check() -> Optional[float]:
     return rejected / len(fixtures)
 
 
+async def run_failure_safety_check(cases: List[Dict[str, Any]]) -> Optional[float]:
+    """Measures verifier_failure_safely_represented_rate from a dedicated,
+    always-run offline exercise -- an AlwaysFailingExtractor run against the
+    same case set, exactly parallel to run_fabrication_check() above. This
+    runs unconditionally, regardless of --simulate-failure, so the metric is
+    populated on every invocation instead of being structurally N/A outside
+    a separate manual --simulate-failure command: a live run's own real
+    failure count is neither controllable nor a meaningful sample (a
+    healthy live run should have ~0 real failures, which would make
+    "fraction of attempts that failed" collapse to 0% and wrongly fail a
+    gate requiring >=100%), so this dedicated exercise -- not the primary
+    run's incidental outcomes -- is the only source for this metric.
+    """
+    outcomes = await run_all(cases, AlwaysFailingExtractor())
+    model_attempted = [o for o in outcomes if o.model_call_attempted]
+    if not model_attempted:
+        return None
+    return sum(1 for o in model_attempted if o.verification_failed) / len(model_attempted)
+
+
+def load_reviewed_answer_key(path: Path) -> Dict[str, str]:
+    """Loads a reconciled human answer key in reconcile_reviews.py's output
+    shape ({"reconciled_labels": [{"id":..., "label":...}, ...]}) into a
+    case-id -> label lookup."""
+    data = json.loads(path.read_text())
+    return {entry["id"]: entry["label"] for entry in data["reconciled_labels"]}
+
+
+def compute_human_agreement_rate(
+    outcomes: List["CaseOutcome"], answer_key: Dict[str, str]
+) -> Optional[float]:
+    """human_verifier_agreement_rate: fraction of resolved cases with a
+    reconciled human label where the verifier's verdict matches it. A case
+    the answer key doesn't cover (e.g. reviewed on a different split) or
+    that verification_failed on is excluded from the denominator, same
+    reasoning as every other rate in compute_metrics."""
+    matched = [o for o in outcomes if not o.verification_failed and o.case["id"] in answer_key]
+    if not matched:
+        return None
+    return sum(1 for o in matched if o.verdict == answer_key[o.case["id"]]) / len(matched)
+
+
 @dataclass
 class CaseOutcome:
     case: Dict[str, Any]
@@ -219,7 +273,8 @@ def compute_metrics(
     provider: str,
     model: str,
     fabricated_quote_rejection_rate: Optional[float] = None,
-    is_simulated_failure_run: bool = False,
+    verifier_failure_safely_represented_rate: Optional[float] = None,
+    human_verifier_agreement_rate: Optional[float] = None,
 ) -> Dict[str, Any]:
     def rate(pairs, predicate):
         return (sum(1 for o in pairs if predicate(o)) / len(pairs)) if pairs else None
@@ -269,23 +324,19 @@ def compute_metrics(
         # run that a real release decision must see disclosed, not hidden
         # inside a rate that looks clean by construction.
         "verification_failure_count": sum(1 for o in outcomes if o.verification_failed),
-        # Only ever measured from a --simulate-failure exercise, never from
-        # whatever real outages happened to occur during a live run: a
-        # live run's real failure count is neither controllable nor a
-        # meaningful sample (a healthy run should have ~0 real failures,
-        # which would make "fraction of attempts that failed" collapse to
-        # 0% and wrongly fail this gate on a perfectly healthy run). The
-        # simulated-failure exercise is the actual, designed-for way to
-        # answer "when the verifier DOES fail, is it represented safely".
-        "verifier_failure_safely_represented_rate": (
-            rate(model_attempted, lambda o: o.verification_failed)
-            if is_simulated_failure_run and model_attempted else None
-        ),
+        # Measured by run_failure_safety_check()'s own dedicated,
+        # always-failing exercise -- run unconditionally on every
+        # invocation regardless of --simulate-failure, so this gate is
+        # populated on a genuine live run instead of staying permanently
+        # N/A outside a separate manual command.
+        "verifier_failure_safely_represented_rate": verifier_failure_safely_represented_rate,
         # Measured offline from fabrication_fixtures.json regardless of
         # whether this is a live or simulated run -- see
         # run_fabrication_check(), which needs no real model.
         "fabricated_quote_rejection_rate": fabricated_quote_rejection_rate,
-        "human_verifier_agreement_rate": None,  # sealed split not yet independently reviewed
+        # None until a --reviewed-answer-key is supplied -- see
+        # compute_human_agreement_rate() and load_reviewed_answer_key().
+        "human_verifier_agreement_rate": human_verifier_agreement_rate,
         "model_calls_attempted": len(model_attempted),
     }
 
@@ -403,12 +454,23 @@ async def main_async(args: argparse.Namespace) -> int:
 
     outcomes = await run_all(cases, extractor)
     fabrication_rate = await run_fabrication_check()
+    failure_safety_rate = await run_failure_safety_check(cases)
+
+    answer_key = (
+        load_reviewed_answer_key(Path(args.reviewed_answer_key))
+        if args.reviewed_answer_key else None
+    )
+    human_agreement_rate = (
+        compute_human_agreement_rate(outcomes, answer_key) if answer_key is not None else None
+    )
+
     metrics = compute_metrics(
         outcomes, args.cost_per_1k_prompt_tokens, args.cost_per_1k_completion_tokens,
         provider=("simulated-failure" if args.simulate_failure else args.provider),
         model=extractor.config["extraction_model"],
         fabricated_quote_rejection_rate=fabrication_rate,
-        is_simulated_failure_run=args.simulate_failure,
+        verifier_failure_safely_represented_rate=failure_safety_rate,
+        human_verifier_agreement_rate=human_agreement_rate,
     )
     gates = gate_results(metrics)
 
@@ -422,7 +484,15 @@ async def main_async(args: argparse.Namespace) -> int:
         print(f"\nWrote {args.markdown_out}")
 
     if args.strict_release_gate:
-        if required_gates_failed(gates, strict=True):
+        # An incomplete run (any verification_failed case) is invalid for a
+        # release decision even if every gate that *could* be computed
+        # passed -- distinct from required_gates_failed's N/A check, since
+        # an outage on a case that happens to fall outside every gated
+        # subpopulation (e.g. a supported-claim case that's neither
+        # unsupported nor unknown-citation) wouldn't otherwise surface as
+        # any gate's N/A or FAIL.
+        incomplete_run = metrics["verification_failure_count"] > 0
+        if required_gates_failed(gates, strict=True) or incomplete_run:
             return 1
     elif args.fail_on_gate and required_gates_failed(gates, strict=False):
         return 1
@@ -438,15 +508,22 @@ def main() -> None:
                               "measures verifier_failure_safely_represented_rate without credentials.")
     parser.add_argument("--cost-per-1k-prompt-tokens", type=float, default=None)
     parser.add_argument("--cost-per-1k-completion-tokens", type=float, default=None)
+    parser.add_argument("--reviewed-answer-key", default=None,
+                         help="Path to a reconcile_reviews.py reconciled-labels JSON file "
+                              "(e.g. benchmarks/grounding/packets/sealed_reconciled.json). "
+                              "Computes human_verifier_agreement_rate against it; omitted, "
+                              "that gate stays N/A.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--markdown-out", default=None, help="Path to write a Markdown report, e.g. "
                          "docs/results/grounding-benchmark-model-verifier.md")
     parser.add_argument("--fail-on-gate", action="store_true",
                          help="Exit with status 1 if any gate FAILs (N/A gates are permitted -- for iteration).")
     parser.add_argument("--strict-release-gate", action="store_true",
-                         help="Exit with status 1 if any gate FAILs OR is N/A -- for the actual release "
-                              "go/no-go decision, where every required gate must be genuinely measured. "
-                              "Takes precedence over --fail-on-gate if both are given.")
+                         help="Exit with status 1 if any gate FAILs OR is N/A, or if any case's "
+                              "verification_failed (an incomplete run is not a valid release "
+                              "signal) -- for the actual release go/no-go decision, where every "
+                              "required gate must be genuinely measured. Takes precedence over "
+                              "--fail-on-gate if both are given.")
     args = parser.parse_args()
 
     exit_code = asyncio.run(main_async(args))
