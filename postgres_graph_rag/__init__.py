@@ -23,6 +23,12 @@ from .grounding import (
     Verifier,
     VerifiedAnswerResult,
 )
+from .verification import (
+    DeterministicVerifier,
+    evaluate_policy,
+    parse_claims,
+    render_answer,
+)
 
 __all__ = [
     "PostgresGraphRAG",
@@ -49,4 +55,8 @@ __all__ = [
     "Verdict",
     "Verifier",
     "VerifiedAnswerResult",
+    "DeterministicVerifier",
+    "evaluate_policy",
+    "parse_claims",
+    "render_answer",
 ]

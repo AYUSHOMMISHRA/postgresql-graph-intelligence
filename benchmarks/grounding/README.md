@@ -20,12 +20,17 @@ strengths.
 | `cases.json` | The frozen dataset (generated, not hand-edited — see below). 140 cases, 14 categories, 84/28/28 dev/calibration/sealed. |
 | `gates.py` | Release 2 acceptance gates, frozen before any sealed-split run. |
 | `baseline_runner.py` | Runs the *current* citation-only validator against the dataset and reports gate metrics. |
+| `deterministic_runner.py` | Runs `postgres_graph_rag.verification.DeterministicVerifier` (PR 3's non-model layers) against the dataset for a before/after comparison. |
 | `reviewer_packets.py` | Produces a blinded (answer-key-stripped) worksheet for one human reviewer. |
 | `reconcile_reviews.py` | Compares two completed reviewer worksheets, reports agreement, writes agreed labels. |
-| `fabrication_fixtures.py` / `fabrication_fixtures.json` | Real-quote/fabricated-quote pairs for a future verifier's quote-validation layer (PR 3). |
+| `fabrication_fixtures.py` / `fabrication_fixtures.json` | Real-quote/fabricated-quote pairs for a future verifier's quote-validation layer. |
 | `verifier_fixtures.py` | Stub verifiers (raising, timing out, malformed response) for a future verifier's failure-handling tests (PR 4/5). |
+| `../../postgres_graph_rag/grounding.py` | PR 2: the verification contract types (`AnswerClaim`, `ClaimVerification`, `VerifiedAnswerResult`, `Verifier` protocol, `GroundingMode`). |
+| `../../postgres_graph_rag/verification.py` | PR 3: the deterministic (non-model) verification layers, including `DeterministicVerifier`. |
 | `../../tests/test_grounding_benchmark.py` | Committed integrity tests for `cases.json` (schema shape, unique ids, exact counts, literal-substring quotes, reproducibility). |
 | `../../tests/test_grounding_fixtures.py` | Committed integrity tests for the fabrication/verifier fixtures. |
+| `../../tests/test_grounding_contract.py` | Tests for the PR 2 contract types. |
+| `../../tests/test_grounding_verification.py` | Tests for the PR 3 deterministic layers (stale evidence, invalid citations, reversed relationships, conflicts, partial support, fabricated quotes, policy evaluation, rendering). |
 
 ## Regenerating `cases.json`
 
@@ -46,6 +51,18 @@ python -m benchmarks.grounding.baseline_runner --split all --json
 
 See `../../docs/results/grounding-benchmark-baseline.md` for the recorded
 result and what it means.
+
+## Running the PR 3 before/after comparison
+
+```bash
+python -m benchmarks.grounding.deterministic_runner --split sealed
+python -m benchmarks.grounding.deterministic_runner --split all --json
+```
+
+See `../../docs/results/grounding-benchmark-deterministic-verifier.md` for
+the recorded result: contradicted/unsupported-claim escape closes to 0%
+with no model call, at a documented, expected cost to supported-claim
+retention that PR 4 (batched model entailment) is scoped to recover.
 
 ## Getting the sealed split independently reviewed
 
