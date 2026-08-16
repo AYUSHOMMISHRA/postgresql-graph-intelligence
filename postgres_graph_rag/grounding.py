@@ -124,11 +124,31 @@ GroundingStatus = Literal[
 
 _VALID_GROUNDING_STATUSES = frozenset(GroundingStatus.__args__)  # type: ignore[attr-defined]
 
-# grounding_status values a caller checking only the legacy `grounded: bool`
+# grounding_status values a caller checking only the plain `grounded: bool`
 # field should still see as "yes, use this answer" -- the rest (contradicted,
 # insufficient, verification_failed, abstained) are all "no" for a caller
 # that hasn't been updated to look at the richer status.
 _GROUNDED_STATUSES = frozenset({"verified", "partially_verified", "citation_valid_only"})
+
+
+def validate_grounding_status(status: str) -> GroundingStatus:
+    """Shared validator for any type storing a `GroundingStatus` value.
+
+    Originally private to `VerifiedAnswerResult.__post_init__`; promoted to
+    a module-level function so `tenant_engine.AnswerResult` -- the one
+    production result type on the answer path -- can apply the same
+    validation instead of accepting an unvalidated `Optional[str]`.
+    """
+    if status not in _VALID_GROUNDING_STATUSES:
+        raise ValueError(f"grounding_status must be one of {sorted(_VALID_GROUNDING_STATUSES)}, got {status!r}")
+    return status  # type: ignore[return-value]
+
+
+def is_grounded_status(status: Optional[str]) -> bool:
+    """Whether `status` counts as "grounded" for a caller that only checks
+    the plain `grounded: bool` compatibility field. `None` (not yet
+    computed) is never grounded."""
+    return status in _GROUNDED_STATUSES
 
 
 @dataclass(frozen=True)
@@ -146,11 +166,7 @@ class VerifiedAnswerResult:
     usage: Dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.grounding_status not in _VALID_GROUNDING_STATUSES:
-            raise ValueError(
-                f"grounding_status must be one of {sorted(_VALID_GROUNDING_STATUSES)}, "
-                f"got {self.grounding_status!r}"
-            )
+        validate_grounding_status(self.grounding_status)
 
     @property
     def grounded(self) -> bool:
@@ -159,7 +175,7 @@ class VerifiedAnswerResult:
         seven distinct states down to the same two everything already
         knows how to handle, which is exactly the loss of information the
         richer field exists to avoid."""
-        return self.grounding_status in _GROUNDED_STATUSES
+        return is_grounded_status(self.grounding_status)
 
     def verification_for(self, claim_id: str) -> Optional[ClaimVerification]:
         for v in self.verifications:

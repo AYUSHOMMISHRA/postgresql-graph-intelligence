@@ -408,7 +408,7 @@ async def test_namespace_isolation_in_traversal(store):
     await store.upsert_edges(tenant, ns_a, [
         {"source_id": ids_a["A"], "target_id": ids_a["B"], "relation": "r"},
     ])
-    ids_b = await store.resolve_and_upsert_nodes(tenant, ns_b, [
+    await store.resolve_and_upsert_nodes(tenant, ns_b, [
         {"content": "A", "embedding": vec(0)}, {"content": "C", "embedding": vec(2)},
     ])
 

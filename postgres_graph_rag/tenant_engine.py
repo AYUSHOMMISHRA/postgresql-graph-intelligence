@@ -18,7 +18,15 @@ from typing import Any, Callable, Dict, List, Optional
 import psycopg
 
 from .extractor import LLMExtractor
-from .grounding import AnswerClaim, GroundingMode, validate_grounding_mode
+from .grounding import (
+    AnswerClaim,
+    ClaimVerification,
+    GroundingMode,
+    GroundingStatus,
+    is_grounded_status,
+    validate_grounding_mode,
+    validate_grounding_status,
+)
 from .models import IngestionConfig, RetrievalConfig
 from .observability import EventBus, NULL_EVENT_BUS, new_correlation_id
 from . import observability as obs
@@ -97,7 +105,6 @@ class AnswerResult:
     answer: str
     citations: List[Citation]
     retrieval: "TenantRetrievalResult"
-    grounded: bool
     usage: Dict[str, int]
     latency_ms: float
     # Why `grounded` is False (None when it's True). There are several
@@ -130,13 +137,26 @@ class AnswerResult:
     # grounding.GroundingStatus for the full state list. Set for every
     # grounding_mode (not just verified/verified_strict), so a caller can
     # migrate to checking this instead of the bool+string pair without
-    # switching modes first.
-    grounding_status: Optional[str] = None
+    # switching modes first. Validated in __post_init__ so an invalid value
+    # is caught at the type that owns it, the same way
+    # grounding.VerifiedAnswerResult validates its own status.
+    grounding_status: Optional[GroundingStatus] = None
     # Populated only for verified/verified_strict modes -- the atomic
     # claims this answer was split into, and each one's verdict. Empty for
     # citation_only (no per-claim splitting happens in that mode).
     claims: List[AnswerClaim] = field(default_factory=list)
-    verifications: List[Any] = field(default_factory=list)  # List[ClaimVerification]
+    verifications: List[ClaimVerification] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.grounding_status is not None:
+            validate_grounding_status(self.grounding_status)
+
+    @property
+    def grounded(self) -> bool:
+        """Derived from `grounding_status`, never stored, so the two can
+        never drift out of sync -- there is exactly one source of truth.
+        `False` when `grounding_status` is `None` (not yet computed)."""
+        return is_grounded_status(self.grounding_status)
 
 
 @dataclass
@@ -1264,7 +1284,7 @@ class TenantGraphRAG:
         if not retrieval.chunks:
             return AnswerResult(
                 answer=abstain_text,
-                citations=[], retrieval=retrieval, grounded=False, usage={},
+                citations=[], retrieval=retrieval, usage={},
                 latency_ms=(time.perf_counter() - started) * 1000,
                 abstain_reason="no_evidence_retrieved",
                 grounding_mode=mode, grounding_status="abstained",
@@ -1292,7 +1312,7 @@ class TenantGraphRAG:
             ))
             return AnswerResult(
                 answer=abstain_text,
-                citations=[], retrieval=retrieval, grounded=False, usage={},
+                citations=[], retrieval=retrieval, usage={},
                 latency_ms=latency_ms,
                 abstain_reason="missing_query_anchor",
                 grounding_mode=mode, grounding_status="abstained",
@@ -1375,7 +1395,7 @@ class TenantGraphRAG:
             ))
             return AnswerResult(
                 answer=generated, citations=citations, retrieval=retrieval,
-                grounded=grounded, usage=usage, latency_ms=latency_ms,
+                usage=usage, latency_ms=latency_ms,
                 abstain_reason=abstain_reason,
                 grounding_mode=mode, grounding_status=grounding_status,
             )
@@ -1391,7 +1411,7 @@ class TenantGraphRAG:
                 attributes={"grounded": False, "citation_count": 0, "reason": abstain_reason, "grounding_mode": mode},
             ))
             return AnswerResult(
-                answer=abstain_text, citations=[], retrieval=retrieval, grounded=False, usage=usage,
+                answer=abstain_text, citations=[], retrieval=retrieval, usage=usage,
                 latency_ms=latency_ms, abstain_reason=abstain_reason,
                 grounding_mode=mode, grounding_status="abstained",
             )
@@ -1449,7 +1469,7 @@ class TenantGraphRAG:
         ))
         return AnswerResult(
             answer=final_answer, citations=citations, retrieval=retrieval,
-            grounded=grounded, usage=usage, latency_ms=latency_ms,
+            usage=usage, latency_ms=latency_ms,
             abstain_reason=abstain_reason,
             grounding_mode=mode, grounding_status=grounding_status,
             claims=claims, verifications=verifications,

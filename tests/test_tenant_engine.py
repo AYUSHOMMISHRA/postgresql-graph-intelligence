@@ -4,7 +4,7 @@ import uuid
 import pytest
 
 from postgres_graph_rag.models import DEFAULT_INGESTION_CONFIG, DEFAULT_RETRIEVAL_CONFIG
-from postgres_graph_rag.tenant_engine import TenantGraphRAG
+from postgres_graph_rag.tenant_engine import AnswerResult, TenantGraphRAG
 
 
 class FakeExtractor:
@@ -621,6 +621,61 @@ async def test_answer_verified_mode_invalid_grounding_mode_raises():
     store.hybrid_search.return_value = []
     with pytest.raises(ValueError, match="grounding_mode must be one of"):
         await engine(store).answer("q", "ns", grounding_mode="verified_but_lazy")
+
+
+# ----------------------------------------------------------------------
+# LEGACY_DELETION_PLAN.md R1: AnswerResult invariants.
+#
+# AnswerResult is the one production result type on the answer path (the
+# parallel grounding.VerifiedAnswerResult was deleted for having no
+# producer). These tests exercise the invariants promoted onto it as part
+# of that deletion: grounding_status is validated and typed, and grounded
+# is derived from grounding_status rather than stored, so the two can
+# never disagree.
+# ----------------------------------------------------------------------
+
+
+def _minimal_answer_result(**overrides):
+    defaults = dict(
+        answer="...", citations=[], retrieval=None, usage={}, latency_ms=0.0,
+    )
+    defaults.update(overrides)
+    return AnswerResult(**defaults)
+
+
+@pytest.mark.parametrize(
+    "grounding_status,expected_grounded",
+    [
+        ("verified", True),
+        ("partially_verified", True),
+        ("citation_valid_only", True),
+        ("contradicted", False),
+        ("insufficient", False),
+        ("verification_failed", False),
+        ("abstained", False),
+    ],
+)
+def test_answer_result_grounded_derives_from_grounding_status(grounding_status, expected_grounded):
+    result = _minimal_answer_result(grounding_status=grounding_status)
+    assert result.grounded is expected_grounded
+
+
+def test_answer_result_grounded_is_false_when_grounding_status_is_none():
+    result = _minimal_answer_result(grounding_status=None)
+    assert result.grounded is False
+
+
+def test_answer_result_rejects_invalid_grounding_status():
+    with pytest.raises(ValueError, match="grounding_status must be one of"):
+        _minimal_answer_result(grounding_status="maybe")
+
+
+def test_answer_result_does_not_accept_a_grounded_constructor_argument():
+    """grounded is a derived property, not a stored field -- passing it
+    explicitly must fail the same way passing any other nonexistent
+    constructor argument would, not silently succeed and get ignored."""
+    with pytest.raises(TypeError):
+        _minimal_answer_result(grounded=True)
 
 
 # ----------------------------------------------------------------------
