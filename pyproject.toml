@@ -1,6 +1,6 @@
 [project]
 name = "postgres-graph-rag"
-version = "0.1.0"
+version = "0.2.0"
 description = "A lean GraphRAG library using Postgres/pgvector as the sole database"
 readme = "README.md"
 requires-python = ">=3.10"

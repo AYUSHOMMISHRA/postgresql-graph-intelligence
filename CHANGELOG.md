@@ -2,6 +2,73 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## 0.2.0 — Legacy-removal residue cleaned up; `AnswerResult` hardened
+
+A follow-up pass (`LEGACY_DELETION_PLAN.md`) on the legacy single-tenant
+engine's removal (below), closing residue the first pass missed and one
+duplicate-construction defect it exposed. Version bumped `0.1.0` → `0.2.0`
+(pre-1.0 minor bump for a breaking removal); see
+`docs/decisions/003-remove-legacy-engine.md`'s addendum for full rationale.
+
+### Removed
+
+- `PostgresGraphRAG.__init__()`'s `postgres_url` parameter — had zero reads
+  anywhere in `core.py`. Removed atomically (parameter, `postgres-graph-
+  rag-eval`'s `--admin-url` flag, `postgres-graph-rag-mcp`'s
+  `--postgres-url` flag, and all call sites in one commit — no working
+  intermediate state exists otherwise). Because it was required, both CLIs
+  previously refused to start without a privileged admin DSN neither ever
+  used (neither calls `setup_secure()`), pushing that credential into
+  processes meant to hold only the restricted runtime role.
+- `grounding.VerifiedAnswerResult` — a parallel result type with no
+  producer or consumer outside its own tests. Its validation invariants
+  were promoted onto `tenant_engine.AnswerResult` first (see below), then
+  the dead type was deleted.
+
+### Fixed
+
+- `tenant_engine.AnswerResult` now validates `grounding_status` (typed
+  `Optional[GroundingStatus]`, validated in `__post_init__` via
+  `grounding.validate_grounding_status()`) and derives `grounded` as a
+  property from it, rather than storing `grounded` as a separate field
+  that could disagree with `grounding_status`. `verifications` is now
+  typed `List[ClaimVerification]` (was `List[Any]`).
+- `mcp_server.py`'s server lifespan and `PostgresGraphRAG.for_tenant()`
+  independently lazy-constructed `SecureGraphStore`, and had diverged: the
+  lifespan skipped `for_tenant()`'s missing-`runtime_url` validation and
+  would construct a store around `None` for a misconfigured deployment.
+  Both now share one `PostgresGraphRAG._get_or_create_store()`.
+- Stale CI/docs referencing the already-removed legacy engine and
+  `benchmarks/bench_scale.py` as if they still existed (`ci.yml`,
+  `docs/architecture.md`, `docs/operations.md`).
+
+### Added
+
+- `tests/test_secure_path_characterization.py` (22 tests): restores
+  coverage `tests/test_database.py` and the `live_provider`-marked
+  `tests/test_scenarios.py` used to provide for behavior that is still
+  live in the secure path — `relation_types`/`exclude_relation_types`
+  filtering, `max_neighbors_per_node`, `min_weight`, `score_decay`, the
+  `max_hops` hard limit, namespace isolation within one tenant, exact/fuzzy
+  entity resolution (including the negative adversarial case), invalid
+  `embedding_dimension` rejection, and facade forwarding of retrieval
+  config into `SecureGraphStore.traverse_graph()`. Proven green against the
+  pre-legacy-removal tree before that removal was committed.
+- `tests/test_tenant_engine.py::test_answer_result_*`: `AnswerResult`
+  invariant tests absorbing the intent of the deleted
+  `VerifiedAnswerResult` tests.
+- `tests/test_tenancy.py`: tests confirming `for_tenant()` and the MCP
+  lifespan share one store instance and raise an identical error without
+  `runtime_url`, and that `postgres-graph-rag-eval` runs end-to-end with no
+  admin DSN anywhere on its arguments.
+
+### Still open (tracked, not silently dropped)
+
+A `SecureGraphStore`-based scale benchmark (replacing the deleted
+`bench_scale.py`) and real-provider (OpenAI/Gemini) secured-path
+end-to-end tests. The former gates any published performance claim; the
+latter gates the next package release.
+
 ## Unreleased — `docs/results/` removed
 
 The `docs/results/` directory (5 dated benchmark/e2e-run markdown files:
