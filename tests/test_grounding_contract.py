@@ -1,9 +1,17 @@
 """Tests for the Release 2 PR 2 verification contract (postgres_graph_rag/
 grounding.py). No provider calls, no live Postgres -- this is pure type/
-interface behavior: valid/invalid construction, the grounded compatibility
-property's derivation from grounding_status, and that the pre-existing
+interface behavior: valid/invalid construction, and that the pre-existing
 verifier fixtures structurally satisfy the Verifier protocol without ever
 importing from this module.
+
+grounding_status validation and the grounded-property derivation are
+tested against tenant_engine.AnswerResult (tests/test_tenant_engine.py's
+test_answer_result_* tests) -- the one production result type on the
+answer path -- rather than here: the parallel grounding.VerifiedAnswerResult
+this file used to test has been removed (it had no producer; PR 3/4/5
+wired their verifier into AnswerResult instead), and its validation/
+derivation logic was promoted onto AnswerResult before the type was
+deleted, not lost with it.
 """
 import pytest
 
@@ -16,7 +24,6 @@ from postgres_graph_rag.grounding import (
     AnswerClaim,
     ClaimVerification,
     Verifier,
-    VerifiedAnswerResult,
     validate_grounding_mode,
 )
 
@@ -44,40 +51,6 @@ def test_claim_verification_rejects_out_of_range_confidence():
 def test_claim_verification_defaults_confidence_to_none():
     v = ClaimVerification(claim_id="c1", verdict="supported")
     assert v.confidence is None
-
-
-@pytest.mark.parametrize(
-    "grounding_status,expected_grounded",
-    [
-        ("verified", True),
-        ("partially_verified", True),
-        ("citation_valid_only", True),
-        ("contradicted", False),
-        ("insufficient", False),
-        ("verification_failed", False),
-        ("abstained", False),
-    ],
-)
-def test_grounded_property_derives_from_grounding_status(grounding_status, expected_grounded):
-    result = VerifiedAnswerResult(
-        claims=[], verifications=[], answer="...", grounding_status=grounding_status,
-    )
-    assert result.grounded is expected_grounded
-
-
-def test_verified_answer_result_rejects_invalid_grounding_status():
-    with pytest.raises(ValueError, match="grounding_status must be one of"):
-        VerifiedAnswerResult(claims=[], verifications=[], answer="...", grounding_status="maybe")  # type: ignore[arg-type]
-
-
-def test_verification_for_looks_up_by_claim_id():
-    v1 = ClaimVerification(claim_id="c1", verdict="supported")
-    v2 = ClaimVerification(claim_id="c2", verdict="contradicted")
-    result = VerifiedAnswerResult(
-        claims=[], verifications=[v1, v2], answer="...", grounding_status="partially_verified",
-    )
-    assert result.verification_for("c2") is v2
-    assert result.verification_for("nonexistent") is None
 
 
 @pytest.mark.parametrize("mode", ["citation_only", "verified", "verified_strict"])

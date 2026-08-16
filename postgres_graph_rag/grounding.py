@@ -4,11 +4,12 @@ Deliberately no provider-based entailment behavior lives here (see
 benchmarks/grounding/README.md for the PR sequencing this follows). What's
 defined:
 
-- `AnswerClaim` / `ClaimVerification` / `VerifiedAnswerResult`: the typed
-  result shape a verifier produces, replacing an ever-more-overloaded plain
-  `grounded: bool` with an explicit `grounding_status` and a `grounded`
-  property derived from it for backward compatibility with `AnswerResult`
-  (tenant_engine.py) call sites that only check `.grounded`.
+- `AnswerClaim` / `ClaimVerification`: the typed result shape a verifier
+  produces. `tenant_engine.AnswerResult` is the one production result type
+  on the answer path; it carries `grounding_status` (validated via
+  `validate_grounding_status()` below) and a `grounded` property derived
+  from it via `is_grounded_status()`, so the two can never drift out of
+  sync.
 - `Verifier`: the protocol a verification backend implements. Structurally
   compatible with `benchmarks/grounding/verifier_fixtures.py`'s stub
   verifiers (`RaisingVerifier`, `TimingOutVerifier`,
@@ -16,17 +17,13 @@ defined:
   from this module -- they were written against the same
   `async def verify(self, claims) -> ...` shape ahead of this contract
   existing, and still satisfy it.
-- `GroundingMode`: the three policies PR 5 will expose on the answer path
+- `GroundingMode`: the three policies `tenant_engine.answer()` exposes
   (`citation_only`, `verified`, `verified_strict`).
-
-Nothing in `tenant_engine.py`'s actual `answer()` method changes yet --
-that wiring is PR 3 (deterministic layers) and PR 4 (batched model
-entailment).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Protocol, Sequence, runtime_checkable
+from typing import List, Literal, Optional, Protocol, Sequence, runtime_checkable
 
 # ----------------------------------------------------------------------
 # Claims and verdicts
@@ -149,39 +146,6 @@ def is_grounded_status(status: Optional[str]) -> bool:
     the plain `grounded: bool` compatibility field. `None` (not yet
     computed) is never grounded."""
     return status in _GROUNDED_STATUSES
-
-
-@dataclass(frozen=True)
-class VerifiedAnswerResult:
-    """Successor to tenant_engine.py's `AnswerResult`, once PR 3/4 wire a
-    real verifier into the answer path. `grounded` is kept as a computed
-    property (not a stored field) specifically so it can never drift out of
-    sync with `grounding_status` -- there is exactly one source of truth."""
-
-    claims: List[AnswerClaim]
-    verifications: List[ClaimVerification]
-    answer: str
-    grounding_status: GroundingStatus
-    citations: List[Any] = field(default_factory=list)  # tenant_engine.Citation, kept as Any to avoid an import cycle
-    usage: Dict[str, int] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        validate_grounding_status(self.grounding_status)
-
-    @property
-    def grounded(self) -> bool:
-        """Compatibility with AnswerResult.grounded (a plain bool). New
-        code should check `grounding_status` directly -- this collapses
-        seven distinct states down to the same two everything already
-        knows how to handle, which is exactly the loss of information the
-        richer field exists to avoid."""
-        return is_grounded_status(self.grounding_status)
-
-    def verification_for(self, claim_id: str) -> Optional[ClaimVerification]:
-        for v in self.verifications:
-            if v.claim_id == claim_id:
-                return v
-        return None
 
 
 # ----------------------------------------------------------------------

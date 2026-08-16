@@ -21,7 +21,6 @@ from .grounding import (
     ReasonCode,
     Verdict,
     Verifier,
-    VerifiedAnswerResult,
     VerifierUnavailableError,
 )
 from .verification import (
@@ -53,7 +52,6 @@ __all__ = [
     "ReasonCode",
     "Verdict",
     "Verifier",
-    "VerifiedAnswerResult",
     "VerifierUnavailableError",
     "DeterministicVerifier",
     "evaluate_policy",

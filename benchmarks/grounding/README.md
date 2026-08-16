@@ -26,7 +26,7 @@ strengths.
 | `reconcile_reviews.py` | Compares two completed reviewer worksheets, reports agreement, writes agreed labels. |
 | `fabrication_fixtures.py` / `fabrication_fixtures.json` | Real-quote/fabricated-quote pairs for a future verifier's quote-validation layer. |
 | `verifier_fixtures.py` | Stub verifiers (raising, timing out, malformed response) for a verifier's failure-handling tests -- used by both `test_grounding_fixtures.py` and `test_model_verifier.py`. |
-| `../../postgres_graph_rag/grounding.py` | PR 2: the verification contract types (`AnswerClaim`, `ClaimVerification`, `VerifiedAnswerResult`, `Verifier` protocol, `VerifierUnavailableError`, `GroundingMode`). |
+| `../../postgres_graph_rag/grounding.py` | PR 2: the verification contract types (`AnswerClaim`, `ClaimVerification`, `Verifier` protocol, `VerifierUnavailableError`, `GroundingMode`). |
 | `../../postgres_graph_rag/verification.py` | PR 3: the deterministic (non-model) verification layers, including `DeterministicVerifier`. |
 | `../../postgres_graph_rag/model_verifier.py` | PR 4: `ModelEntailmentVerifier` -- batched model entailment layered on top of PR 3, one bounded provider call per answer, server-side quote validation, `VerifierUnavailableError` on any provider failure. |
 | `../../postgres_graph_rag/extractor.py` | `LLMExtractor.verify_claims()` -- the provider-specific (OpenAI/Google) structured-output plumbing `ModelEntailmentVerifier` calls, alongside the pre-existing `extract_triplets()`. |
