@@ -34,9 +34,16 @@ not raw prompts or document text.
 
 `benchmarks/bench_scale.py` measured only the legacy single-tenant engine and
 was removed along with it (see `docs/decisions/003-remove-legacy-engine.md`).
-A `SecureGraphStore`/`TenantGraphRAG`-based replacement — one that reflects
-RLS policy-evaluation and transaction-local tenant-context overhead — is
-planned but does not exist yet. Until it lands, treat secure-path scale
-characteristics at high per-namespace node counts as unmeasured rather than
-assuming the legacy engine's prior numbers still apply. Do not treat results
-from a synthetic random graph as a retrieval-quality benchmark.
+`benchmarks/bench_scale_secure.py` replaces it: every timed query runs
+through `SecureGraphStore.tenant_connection()`, reflecting RLS
+policy-evaluation and transaction-local tenant-context overhead the legacy
+tool never measured. Use an isolated database/schema and run with a fixed
+seed (already the default: seed `1729`).
+
+Published 1K/10K-node numbers against a properly isolated schema have not
+yet been run and recorded — the tool exists and is smoke-tested at small
+scale, but a real run at production-representative scale is separate,
+tracked follow-up work. Until that lands, treat secure-path scale
+characteristics at high per-namespace node counts as unmeasured. Do not
+treat results from a synthetic random graph as a retrieval-quality
+benchmark.

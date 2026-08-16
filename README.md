@@ -268,12 +268,22 @@ above), at an expected, documented cost to recall that the model layer
 Scale-benchmarking tooling (`benchmarks/bench_scale.py`) previously measured
 the single-tenant engine directly; that engine has since been removed (see
 [CHANGELOG.md](CHANGELOG.md)), so the tooling was removed with it rather
-than left broken. A `SecureGraphStore`/`TenantGraphRAG`-based replacement —
-scale-tested against the RLS-secured path, including its policy-evaluation
-and transaction-local tenant-context overhead — is planned; see the
-Roadmap. Until it lands, treat scale characteristics at high per-namespace
-node counts as unmeasured rather than assuming the prior numbers still
-apply.
+than left broken. `benchmarks/bench_scale_secure.py` is its
+`SecureGraphStore`/`TenantGraphRAG`-based replacement: every query it times
+runs through `tenant_connection()`, the same transaction-scoped
+`set_config()` + RLS-policy-evaluation path a real request takes, so its
+numbers include the overhead the legacy tool's never did.
+
+```bash
+uv run python -m benchmarks.bench_scale_secure --admin-url "$POSTGRES_URL" --scales 1000,10000
+```
+
+Published scale numbers at 1K/10K nodes against a properly isolated schema
+have not yet been run and recorded here — the tool exists and is smoke-
+tested, but doing a real run and publishing its output is separate,
+tracked follow-up work. Until that lands, treat scale characteristics at
+high per-namespace node counts as unmeasured rather than assuming any
+number is known.
 
 ---
 

@@ -2,6 +2,40 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — Remaining `0.2.0`-tracked follow-ups closed
+
+Three of the four items `0.2.0` (below) recorded as deliberately deferred
+are now done:
+
+- **`database.py` renamed to `_db_utils.py`.** After `DatabaseManager`'s
+  removal it was leaf utilities only; the name described a class that no
+  longer existed. `tests/test_database.py` renamed to `tests/test_db_utils.py`
+  to match. `tenancy.py`'s function-local import inside `migrate_schema()`
+  (annotated "avoid cycle at module load") is removed and hoisted to the
+  top-level import — the module imports nothing from this package, so no
+  cycle was ever possible.
+- **The citation-only grounding rule's two implementations
+  (`tenant_engine.answer()` and `benchmarks/grounding/baseline_runner.py`)
+  are now bound by a characterization test**
+  (`tests/test_grounding_rule_parity.py`), rather than consolidated into one
+  shared predicate — coupling the frozen benchmark baseline to what it
+  measures would let it drift silently whenever production changes, which
+  the plan rejected on purpose. `verification.evaluate_policy()`'s
+  unreachable `citation_only` branch is annotated with why it's kept
+  (exported public API) and why `answer()` never reaches it.
+- **`benchmarks/bench_scale_secure.py`** replaces the deleted
+  `bench_scale.py`: every timed query runs through
+  `SecureGraphStore.tenant_connection()`, reflecting RLS
+  policy-evaluation and transaction-local tenant-context overhead the
+  legacy tool never measured. Smoke-tested at small scale; a full 1K/10K
+  run against a properly isolated schema, with published numbers, remains
+  separate follow-up work.
+
+**Still open:** real-provider (OpenAI + Gemini) secured-path end-to-end
+tests, gating the next package release — needs both provider API keys
+available and a decision to spend real money on live calls, neither of
+which this pass had.
+
 ## 0.2.0 — Legacy-removal residue cleaned up; `AnswerResult` hardened
 
 A follow-up pass (`LEGACY_DELETION_PLAN.md`) on the legacy single-tenant
