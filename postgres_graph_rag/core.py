@@ -34,7 +34,6 @@ def simple_chunker(
 class PostgresGraphRAG:
     def __init__(
         self,
-        postgres_url: str,
         openai_api_key: Optional[str] = None,
         google_api_key: Optional[str] = None,
         config: Optional[ProviderConfig] = None,
@@ -54,10 +53,11 @@ class PostgresGraphRAG:
         never a superuser/owner URL — RLS does nothing for a role that can
         bypass it.
 
-        `postgres_url` is accepted for constructor-signature compatibility
-        with existing callers but is otherwise unused: it backed the legacy
-        single-tenant engine (removed), and `setup_secure()`/`for_tenant()`
-        take their own `admin_url`/`runtime_url` instead.
+        There is no `postgres_url`/admin-connection constructor argument:
+        `setup_secure()` takes its own `admin_url` directly, since it is a
+        privileged, one-time/idempotent operation that should not require
+        every other caller of this constructor (which only ever needs the
+        restricted `runtime_url`) to also hold an admin connection string.
         """
         self._runtime_url = runtime_url
         self._secure_store = None  # lazily created by for_tenant()

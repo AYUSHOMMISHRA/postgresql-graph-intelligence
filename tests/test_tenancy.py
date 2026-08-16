@@ -548,7 +548,6 @@ async def test_for_tenant_facade_end_to_end_with_mocked_extractor(store):
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
     rag = PostgresGraphRAG(
-        postgres_url=POSTGRES_URL,
         openai_api_key="test",
         config=config,
         runtime_url=_runtime_url(),
@@ -864,7 +863,7 @@ async def test_ingestion_and_retrieval_emit_usage_events(store):
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
     rag = PostgresGraphRAG(
-        postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url(),
+        openai_api_key="test", config=config, runtime_url=_runtime_url(),
     )
     rag.extractor.extract_triplets = AsyncMock(return_value=[Triplet(subject="Apple", predicate="released", object="M4")])
 
@@ -907,7 +906,7 @@ async def mcp_rag(store):
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
     rag = PostgresGraphRAG(
-        postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url(),
+        openai_api_key="test", config=config, runtime_url=_runtime_url(),
     )
     rag.extractor.extract_triplets = AsyncMock(
         return_value=[Triplet(subject="Apple", predicate="released", object="M4")]
@@ -959,7 +958,7 @@ async def test_for_tenant_and_mcp_lifespan_raise_the_same_error_without_runtime_
     from postgres_graph_rag import PostgresGraphRAG
     from postgres_graph_rag.mcp_server import build_server
 
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", runtime_url=None)
+    rag = PostgresGraphRAG(openai_api_key="test", runtime_url=None)
 
     with pytest.raises(ValueError, match="runtime_url"):
         rag.for_tenant(tid())
@@ -983,6 +982,57 @@ async def test_for_tenant_and_mcp_lifespan_raise_the_same_error_without_runtime_
     inner = exc_info.value.exceptions[0] if hasattr(exc_info.value, "exceptions") else exc_info.value
     assert isinstance(inner, ValueError)
     assert "runtime_url" in str(inner)
+
+
+@pytest.mark.asyncio
+async def test_evaluation_cli_runs_end_to_end_with_no_admin_dsn(store, monkeypatch):
+    """LEGACY_DELETION_PLAN.md R4: postgres-graph-rag-eval's _run() must
+    reach a real, observable ready state (ingest + evaluate against a live
+    secure store) using only PGR_RUNTIME_URL -- no admin_url/POSTGRES_URL
+    anywhere on the args namespace it's given. `--help` would not prove
+    this: argparse short-circuits before any credential is read at all, so
+    it would pass even if _run() still required an admin DSN."""
+    import argparse
+
+    from postgres_graph_rag import evaluation
+    from postgres_graph_rag.evaluation import BenchmarkCase, BenchmarkDocument
+    from postgres_graph_rag.offline import OfflineExtractor
+
+    tiny_documents = [
+        BenchmarkDocument(
+            source_id="incident-001-deploy",
+            text="checkout-service-001 depends on auth-service-001.",
+            triplets=(("checkout-service-001", "depends_on", "auth-service-001"),),
+        ),
+    ]
+    tiny_cases = [
+        BenchmarkCase(
+            id="case-1", category="multi_hop",
+            question="What does checkout-service-001 depend on?",
+            expected_entities=("auth-service-001",),
+        ),
+    ]
+    monkeypatch.setattr(evaluation, "build_incident_dataset", lambda: (tiny_documents, tiny_cases))
+    # The store fixture's schema is migrated at DIM=8; evaluation's real
+    # offline_extractor() defaults to the 1536-dim OFFLINE_CONFIG, so it's
+    # swapped for one matching this test's schema dimension.
+    monkeypatch.setattr(
+        evaluation, "offline_extractor",
+        lambda documents: OfflineExtractor(
+            config={"extraction_model": "offline", "embedding_model": "offline", "dimension": DIM},
+        ),
+    )
+
+    args = argparse.Namespace(
+        runtime_url=_runtime_url(),
+        tenant_id=str(tid()),
+        namespace="eval-cli-ns",
+        ingest=True,
+        output=None,
+    )
+    assert not hasattr(args, "admin_url"), "the args namespace must not carry an admin_url at all"
+
+    await evaluation._run(args)
 
 
 @pytest.mark.asyncio
@@ -1090,7 +1140,7 @@ async def test_failed_extraction_leaves_chunk_durably_retrievable(store):
     config["dimension"] = DIM
     ingestion_config = {"max_extraction_retries": 1}
     rag = PostgresGraphRAG(
-        postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url(),
+        openai_api_key="test", config=config, runtime_url=_runtime_url(),
         ingestion_config=ingestion_config,
     )
     rag.extractor.extract_triplets = AsyncMock(side_effect=RuntimeError("simulated outage"))
@@ -1125,7 +1175,7 @@ async def test_retry_failed_chunks_recovers_without_original_text(store):
     config["dimension"] = DIM
     ingestion_config = {"max_extraction_retries": 1}
     rag = PostgresGraphRAG(
-        postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url(),
+        openai_api_key="test", config=config, runtime_url=_runtime_url(),
         ingestion_config=ingestion_config,
     )
 
@@ -1177,7 +1227,7 @@ async def test_embedding_failure_does_not_commit_hash_and_retry_recovers(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     call_count = {"n": 0}
 
@@ -1233,7 +1283,7 @@ async def test_update_failure_preserves_old_revision(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     call_count = {"n": 0}
 
@@ -1289,7 +1339,7 @@ async def test_chunk_replacement_failure_rolls_back_hash_too(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1338,7 +1388,7 @@ async def test_concurrent_identical_ingestion_no_duplicate_chunks(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1378,7 +1428,7 @@ async def test_concurrent_different_content_updates_yield_one_consistent_winner(
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1429,7 +1479,7 @@ async def test_stale_extraction_does_not_wire_facts_to_superseded_chunks(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1552,7 +1602,7 @@ async def test_retry_sweep_binds_status_to_hash_captured_at_fetch_time(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1669,7 +1719,7 @@ async def test_add_record_failure_rolls_back_entity_node_too(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1716,7 +1766,7 @@ async def test_partial_wiring_failure_leaves_no_unsupported_edge(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1759,7 +1809,7 @@ async def test_retrieval_returns_real_source_id_not_none(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
     rag.extractor.extract_triplets = AsyncMock(return_value=[Triplet(subject="Apple", predicate="released", object="M4")])
 
     async def fake_embed(text):
@@ -1828,7 +1878,7 @@ async def test_document_update_replaces_chunks_and_mentions(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -1863,7 +1913,7 @@ async def test_delete_document_removes_chunks_from_retrieval(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
     rag.extractor.extract_triplets = AsyncMock(return_value=[])
 
     async def fake_embed(text):
@@ -1899,7 +1949,6 @@ async def test_delete_document_removes_unsupported_extracted_edges(store):
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
     rag = PostgresGraphRAG(
-        postgres_url=POSTGRES_URL,
         openai_api_key="test",
         config=config,
         runtime_url=_runtime_url(),
@@ -2021,7 +2070,7 @@ def _mock_rag():
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM
@@ -2594,7 +2643,7 @@ async def test_answer_verified_mode_end_to_end_against_real_retrieval(store):
 
     config = dict(OPENAI_DEFAULT_CONFIG)
     config["dimension"] = DIM
-    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", config=config, runtime_url=_runtime_url())
+    rag = PostgresGraphRAG(openai_api_key="test", config=config, runtime_url=_runtime_url())
 
     async def fake_embed(text):
         return [[0.1] * DIM for _ in text] if isinstance(text, list) else [0.1] * DIM

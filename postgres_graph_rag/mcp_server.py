@@ -355,7 +355,6 @@ def main() -> None:
     import os
 
     parser = argparse.ArgumentParser(prog="postgres-graph-rag-mcp")
-    parser.add_argument("--postgres-url", default=os.getenv("POSTGRES_URL"))
     parser.add_argument("--runtime-url", default=os.getenv("PGR_RUNTIME_URL"))
     parser.add_argument("--openai-api-key", default=os.getenv("OPENAI_API_KEY"))
     parser.add_argument("--google-api-key", default=os.getenv("GOOGLE_API_KEY"))
@@ -367,11 +366,10 @@ def main() -> None:
     parser.add_argument("--allow-unauthenticated-dev", action="store_true")
     args = parser.parse_args()
 
-    if not args.postgres_url or not args.runtime_url:
-        parser.error("--postgres-url and --runtime-url (or POSTGRES_URL/PGR_RUNTIME_URL) are required")
+    if not args.runtime_url:
+        parser.error("--runtime-url (or PGR_RUNTIME_URL) is required")
 
     rag = PostgresGraphRAG(
-        postgres_url=args.postgres_url,
         runtime_url=args.runtime_url,
         openai_api_key=args.openai_api_key,
         google_api_key=args.google_api_key,

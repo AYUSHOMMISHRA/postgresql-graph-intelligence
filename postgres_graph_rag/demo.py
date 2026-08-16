@@ -83,7 +83,6 @@ def _urls(args: argparse.Namespace) -> tuple[str, str]:
 def _rag(args: argparse.Namespace, runtime_url: str | None = None) -> PostgresGraphRAG:
     extractor = _offline_extractor()
     return PostgresGraphRAG(
-        postgres_url=args.admin_url or os.getenv("POSTGRES_URL", ""),
         runtime_url=runtime_url or args.runtime_url or os.getenv("PGR_RUNTIME_URL"),
         extractor=extractor,
     )
@@ -97,7 +96,7 @@ async def _setup(args: argparse.Namespace) -> None:
                 await cur.execute(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE")
             await conn.commit()
         print(f"Reset demo schema {SCHEMA} before setup.")
-    rag = PostgresGraphRAG(postgres_url=admin_url, runtime_url=runtime_url, extractor=_offline_extractor())
+    rag = PostgresGraphRAG(runtime_url=runtime_url, extractor=_offline_extractor())
     try:
         await rag.setup_secure(
             admin_url=admin_url,

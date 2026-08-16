@@ -71,7 +71,6 @@ RUNTIME_DSN = os.environ["PGR_RUNTIME_URL"]
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
 rag = PostgresGraphRAG(
-    postgres_url=ADMIN_DSN,
     runtime_url=RUNTIME_DSN,
     openai_api_key=os.environ["OPENAI_API_KEY"],
 )
@@ -112,7 +111,7 @@ For a no-key, deterministic setup use `postgres-graph-rag-demo`; see
 For applications (like FastAPI or background workers), use the `async with` pattern to ensure the connection pool is always closed correctly, even if errors occur.
 
 ```python
-async with PostgresGraphRAG(postgres_url=DSN, runtime_url=RUNTIME_DSN, openai_api_key=KEY) as rag:
+async with PostgresGraphRAG(runtime_url=RUNTIME_DSN, openai_api_key=KEY) as rag:
     engine = rag.for_tenant(TENANT_ID)
     await engine.add_document("The M4 chip uses ARM architecture.", namespace="notes", source_id="doc-1")
     # No need to call rag.close(), it happens automatically!
@@ -129,7 +128,6 @@ splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 
 # Inject it into the library
 rag = PostgresGraphRAG(
-    postgres_url=DSN,
     openai_api_key=KEY,
     chunker=splitter.split_text # Just pass the method
 )
@@ -192,7 +190,6 @@ mentions during traversal scoring.
 from postgres_graph_rag.models import IngestionConfig
 
 rag = PostgresGraphRAG(
-    postgres_url=DSN,
     openai_api_key=KEY,
     ingestion_config=IngestionConfig(
         max_concurrent_extractions=8,   # bounded concurrency, not unbounded fan-out
@@ -361,14 +358,14 @@ Retrieval modes are explicit: `vector` is the lexical/vector baseline, `hybrid` 
 from postgres_graph_rag import PostgresGraphRAG
 
 rag = PostgresGraphRAG(
-    postgres_url=ADMIN_DSN,          # privileged connection, used only for setup_secure()
     runtime_url=RUNTIME_DSN,         # the restricted role's connection string, used for all tenant queries
     openai_api_key=KEY,
 )
 
 # One-time (or idempotent re-run) migration: creates the postgres_graph_rag
 # schema, RLS policies, and the runtime role. Must be called with an
-# admin/superuser connection string, never the runtime role's.
+# admin/superuser connection string, never the runtime role's -- passed
+# directly to setup_secure(), not to the constructor above.
 await rag.setup_secure(
     admin_url=ADMIN_DSN,
     runtime_role="pgr_runtime",
@@ -482,7 +479,7 @@ Optional dependency: `pip install "postgres-graph-rag[mcp]"`. Exposes the tenant
 ```bash
 # stdio (local IDE/agent use) — exactly one, statically-configured tenant per process
 postgres-graph-rag-mcp \
-  --postgres-url postgresql://... --runtime-url postgresql://pgr_runtime:...@... \
+  --runtime-url postgresql://pgr_runtime:...@... \
   --openai-api-key sk-... --tenant-id 11111111-1111-1111-1111-111111111111
 
 # Streamable HTTP (remote) — refuses to start without a tenant_resolver unless you

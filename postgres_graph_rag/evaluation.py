@@ -223,11 +223,10 @@ def _aggregate(results: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 async def _run(args: argparse.Namespace) -> None:
     documents, cases = build_incident_dataset()
     runtime_url = args.runtime_url or os.getenv("PGR_RUNTIME_URL")
-    admin_url = args.admin_url or os.getenv("POSTGRES_URL")
-    if not runtime_url or not admin_url:
-        raise SystemExit("POSTGRES_URL and PGR_RUNTIME_URL are required")
+    if not runtime_url:
+        raise SystemExit("PGR_RUNTIME_URL is required")
     rag = PostgresGraphRAG(
-        postgres_url=admin_url, runtime_url=runtime_url,
+        runtime_url=runtime_url,
         extractor=offline_extractor(documents),
     )
     engine = rag.for_tenant(uuid.UUID(args.tenant_id))
@@ -246,7 +245,6 @@ async def _run(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="postgres-graph-rag-eval")
-    parser.add_argument("--admin-url")
     parser.add_argument("--runtime-url")
     parser.add_argument("--tenant-id", default=str(DEFAULT_TENANT))
     parser.add_argument("--namespace", default="incident-benchmark-v1")
