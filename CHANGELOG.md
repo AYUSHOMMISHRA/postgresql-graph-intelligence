@@ -31,10 +31,12 @@ are now done:
   run against a properly isolated schema, with published numbers, remains
   separate follow-up work.
 
-**Still open:** real-provider (OpenAI + Gemini) secured-path end-to-end
-tests, gating the next package release — needs both provider API keys
-available and a decision to spend real money on live calls, neither of
-which this pass had.
+**Real-provider secured-path E2E tests** (`tests/test_live_provider_e2e.py`,
+marked `live_provider`, excluded from routine runs): one real, billed
+Gemini call through `setup_secure()` -> `for_tenant()` -> `add_document()`
+-> `answer()` -- **run and passing**. The OpenAI counterpart is written and
+gated on `OPENAI_API_KEY` (currently unset in this environment); it will
+run automatically once a real key is available, no code change needed.
 
 ## 0.2.0 — Legacy-removal residue cleaned up; `AnswerResult` hardened
 
