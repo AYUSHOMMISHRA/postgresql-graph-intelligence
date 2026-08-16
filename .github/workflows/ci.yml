@@ -26,9 +26,11 @@ jobs:
       - run: uv sync --extra test --extra mcp
       - name: Unit tests
         # Bare invocation: pyproject.toml's addopts already excludes
-        # live_provider by default, and test_database.py/test_tenancy.py
-        # self-skip without POSTGRES_URL (set only in the postgres job
-        # below) -- so this picks up every new non-Postgres, non-live suite
+        # live_provider by default, and test_tenancy.py self-skips without
+        # POSTGRES_URL (set only in the postgres job below) --
+        # test_database.py no longer needs Postgres at all since
+        # DatabaseManager was removed, so it already runs here too --
+        # this picks up every new non-Postgres, non-live suite
         # (grounding benchmark/contract/verification/fixtures,
         # model_verifier, model_verifier_runner, extractor_generation)
         # instead of needing to be extended by hand each time one's added.
@@ -58,9 +60,9 @@ jobs:
           enable-cache: true
       - run: uv python install 3.12
       - run: uv sync --extra test --extra mcp
-      - name: Database and tenancy tests
+      - name: Tenancy and secure-path characterization tests
         env:
           POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/pgr_test
           OPENAI_API_KEY: ""
           GOOGLE_API_KEY: ""
-        run: uv run pytest -q tests/test_database.py tests/test_tenancy.py
+        run: uv run pytest -q tests/test_tenancy.py tests/test_secure_path_characterization.py

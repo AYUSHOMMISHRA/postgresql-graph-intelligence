@@ -4,14 +4,13 @@ Requires POSTGRES_URL (an admin/superuser connection, to run migrate_schema
 and create the restricted runtime role) — skipped otherwise. No LLM key
 needed; embeddings are supplied directly.
 
-Test-safety note: unlike tests/test_database.py (which isolates itself into
-a throwaway `pgr_test` *schema*), these tests DROP/CREATE the
-`postgres_graph_rag` schema and a `pgr_test_runtime` role directly, because
-`tenancy.py` currently hardcodes its schema name rather than accepting it
-as a parameter. This is acceptable today because that schema is new (no
-production deployment has ever used it yet), but parameterizing the schema
-name is a reasonable fast-follow if this ever needs to run against a
-database that also hosts real tenant data under that name.
+Test-safety note: these tests DROP/CREATE the `postgres_graph_rag` schema
+and a `pgr_test_runtime` role directly, because `tenancy.py` currently
+hardcodes its schema name rather than accepting it as a parameter. This is
+acceptable today because that schema is new (no production deployment has
+ever used it yet), but parameterizing the schema name is a reasonable
+fast-follow if this ever needs to run against a database that also hosts
+real tenant data under that name.
 """
 import os
 import uuid

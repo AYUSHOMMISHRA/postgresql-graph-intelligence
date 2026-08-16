@@ -7,7 +7,11 @@ PostgreSQL and need moderate-scale, multi-hop knowledge retrieval without a
 second graph or vector database. It does not claim to replace a graph-native
 database for arbitrary graph analytics.
 
-The secure tenant API is the primary product. The namespace-only engine is a
+The secure, RLS-enforced tenant API (`SecureGraphStore` / `TenantGraphRAG`) is
+the only engine. The legacy namespace-only engine has been removed entirely
+(see `docs/decisions/003-remove-legacy-engine.md`); the one piece of it still
+supported is backfilling a pre-existing single-tenant deployment's data into
+this schema (`migrate_legacy_data=True`), which is data import, not an API
 compatibility layer.
 
 ```mermaid

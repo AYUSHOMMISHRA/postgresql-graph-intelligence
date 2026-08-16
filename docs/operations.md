@@ -32,7 +32,11 @@ not raw prompts or document text.
 
 ## Performance workflow
 
-Use an isolated database/schema and run the scale benchmark with a fixed seed.
-Record hardware, PostgreSQL/pgvector versions, Git SHA, cold/warm state, query
-plans, and p50/p95/p99. Do not treat results from a synthetic random graph as a
-retrieval-quality benchmark.
+`benchmarks/bench_scale.py` measured only the legacy single-tenant engine and
+was removed along with it (see `docs/decisions/003-remove-legacy-engine.md`).
+A `SecureGraphStore`/`TenantGraphRAG`-based replacement — one that reflects
+RLS policy-evaluation and transaction-local tenant-context overhead — is
+planned but does not exist yet. Until it lands, treat secure-path scale
+characteristics at high per-namespace node counts as unmeasured rather than
+assuming the legacy engine's prior numbers still apply. Do not treat results
+from a synthetic random graph as a retrieval-quality benchmark.
