@@ -83,7 +83,8 @@ labels that exist. Until two independent reviewers have gone through
 `reviewer_packets.py`'s output and `reconcile_reviews.py` shows agreement
 (see that script's docstring for the reconciliation process), this is a
 **release candidate for the sealed answer key, not the sealed answer key
-itself**. Treat every current metric in `docs/results/` derived from this
-dataset as provisional, and do not promote it to plain `grounding-benchmark-v1`
-by renaming until that review has actually happened — the version string
-itself is part of what "sealed" is supposed to mean.
+itself**. Treat every current metric derived from this dataset (see
+`CHANGELOG.md` for recorded measurements) as provisional, and do not
+promote it to plain `grounding-benchmark-v1` by renaming until that review
+has actually happened — the version string itself is part of what
+"sealed" is supposed to mean.

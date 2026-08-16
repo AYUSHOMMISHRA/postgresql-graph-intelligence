@@ -55,8 +55,7 @@ python -m benchmarks.grounding.baseline_runner --split sealed
 python -m benchmarks.grounding.baseline_runner --split all --json
 ```
 
-See `../../docs/results/grounding-benchmark-baseline.md` for the recorded
-result and what it means.
+See `../../CHANGELOG.md` for the recorded result and what it means.
 
 ## Running the PR 3 before/after comparison
 
@@ -65,10 +64,10 @@ python -m benchmarks.grounding.deterministic_runner --split sealed
 python -m benchmarks.grounding.deterministic_runner --split all --json
 ```
 
-See `../../docs/results/grounding-benchmark-deterministic-verifier.md` for
-the recorded result: contradicted/unsupported-claim escape closes to 0%
-with no model call, at a documented, expected cost to supported-claim
-retention that PR 4 (batched model entailment) is scoped to recover.
+See `../../CHANGELOG.md` for the recorded result: contradicted/unsupported-claim
+escape closes to 0% with no model call, at a documented, expected cost to
+supported-claim retention that PR 4 (batched model entailment) is scoped
+to recover.
 
 ## PR 4/6 status: `model_verifier_runner.py` built and tested, no live-provider run yet
 
@@ -119,7 +118,7 @@ OPENAI_API_KEY=... python -m benchmarks.grounding.model_verifier_runner \
     --provider openai --split sealed --strict-release-gate \
     --reviewed-answer-key benchmarks/grounding/packets/sealed_reconciled.json \
     --cost-per-1k-prompt-tokens <rate> --cost-per-1k-completion-tokens <rate> \
-    --markdown-out docs/results/grounding-benchmark-model-verifier.md
+    --markdown-out grounding-benchmark-model-verifier.md
 ```
 
 `--reviewed-answer-key` is validated, not merely parsed: it must be for
@@ -133,9 +132,9 @@ wrong number or an unhandled traceback.
 
 That run — `deterministic_runner.py`'s result vs. this one against the
 sealed split, with a real `LLMExtractor` — is the natural follow-up once
-credentials are available, and belongs in its own
-`docs/results/grounding-benchmark-model-verifier.md` alongside real
-latency/cost/token numbers, not estimated ones. `human_verifier_agreement_rate`
+credentials are available, and should be recorded in `CHANGELOG.md`
+alongside real latency/cost/token numbers, not estimated ones.
+`human_verifier_agreement_rate`
 stays N/A without `--reviewed-answer-key` — it needs the sealed split's
 independent human review (see below) reconciled into the file that flag
 points at, which is orthogonal to having API credentials, so

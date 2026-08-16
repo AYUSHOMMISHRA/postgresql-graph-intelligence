@@ -1,6 +1,6 @@
 """Release 2 acceptance gates for the grounding benchmark, frozen *before*
 any verifier is implemented or run against the sealed split (see
-../../docs/results/ for recorded runs and README.md for how these are used).
+../../CHANGELOG.md for recorded runs and README.md for how these are used).
 
 Do not edit a gate's value after inspecting a sealed-split result it was
 meant to judge. If a gate turns out to be miscalibrated, that's a finding to

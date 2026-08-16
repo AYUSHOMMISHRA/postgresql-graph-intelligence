@@ -606,7 +606,7 @@ def main() -> None:
                               "silently accepted.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--markdown-out", default=None, help="Path to write a Markdown report, e.g. "
-                         "docs/results/grounding-benchmark-model-verifier.md")
+                         "grounding-benchmark-model-verifier.md")
     parser.add_argument("--fail-on-gate", action="store_true",
                          help="Exit with status 1 if any gate FAILs (N/A gates are permitted -- for iteration).")
     parser.add_argument("--strict-release-gate", action="store_true",

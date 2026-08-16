@@ -2,6 +2,44 @@
 
 All notable changes to `postgres-graph-rag` are documented here.
 
+## Unreleased — `docs/results/` removed
+
+The `docs/results/` directory (5 dated benchmark/e2e-run markdown files:
+`incident-benchmark-v1.md`, `grounding-benchmark-baseline.md`,
+`grounding-benchmark-deterministic-verifier.md`,
+`openai-four-question-e2e-2026-08-15.md`,
+`google-complex-e2e-2026-08-15.md`) has been deleted, along with the
+convention of writing benchmark output there.
+
+### Why
+
+These were point-in-time snapshots from the initial demo-prep/benchmarking
+work. The CTO demo they were partly kept as backup material for has
+already happened, so their operational role (backup material if a live
+demo fails, evidence to cite live) is no longer live. The substantive
+numbers they recorded (e.g. contradicted-claim escape rate 100% → 0% from
+the deterministic grounding layers, the 12.5% → 100% multi-hop recall gap
+between vector-only and hybrid+graph retrieval) remain accurately
+described in this changelog's own historical entries below and are not
+being re-litigated or lost — only the standalone result files themselves
+are gone.
+
+### Updated references
+
+- `README.md`: removed the dead "Benchmark result" nav link and the
+  grounding-modes section's reference to the deleted deterministic-verifier
+  result file (now points to this changelog instead).
+- `benchmarks/grounding/README.md`, `LABELING.md`, `gates.py`,
+  `model_verifier_runner.py`: updated prose/help-text pointers that
+  previously referenced `docs/results/...` paths to instead point at this
+  changelog, or to a bare output filename for future runs (no more implied
+  dedicated results directory).
+- `docs/reviews/demo-readiness-review-2026-08-16.md`: left as an unedited,
+  dated snapshot (per this repo's established convention of not rewriting
+  historical documents), with a short addendum noting the files it cited as
+  demo backup material no longer exist.
+
+
 ## Unreleased — PR 6 closure: reviewed-answer-key integrity validation
 
 A third correction to `benchmarks/grounding/model_verifier_runner.py`:
