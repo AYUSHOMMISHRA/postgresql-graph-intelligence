@@ -125,6 +125,34 @@ class PostgresGraphRAG:
             migrate_legacy_data=migrate_legacy_data,
         )
 
+    def _get_or_create_store(self):
+        """Lazily builds (or returns the already-built) `SecureGraphStore`
+        for this instance's `runtime_url`.
+
+        This is the single construction path for the secure store: both
+        `for_tenant()` below and `mcp_server.py`'s server lifespan call it,
+        instead of each independently re-implementing lazy init by reaching
+        into `self._secure_store`/`self._runtime_url` directly. Before this
+        was extracted, the two copies diverged on the error path -- this
+        one's missing-`runtime_url` check is the only one; the MCP lifespan
+        used to skip it entirely and would construct a store around `None`.
+
+        Requires `runtime_url` to have been passed to the constructor.
+        """
+        if not self._runtime_url:
+            raise ValueError(
+                "PostgresGraphRAG requires runtime_url to be set to the "
+                "restricted RLS runtime role's connection string before a "
+                "SecureGraphStore can be constructed (for_tenant() or the "
+                "MCP server both need this)."
+            )
+        if self._secure_store is None:
+            from .tenancy import SecureGraphStore, _vector_column_type as _vt
+
+            vector_type = _vt(self.extractor.config["dimension"])
+            self._secure_store = SecureGraphStore(self._runtime_url, vector_type=vector_type)
+        return self._secure_store
+
     def for_tenant(self, tenant_id, event_bus=None):
         """Returns a `TenantGraphRAG` bound to `tenant_id` for the lifetime
         of the returned object — tenant_id is never a per-call argument
@@ -135,20 +163,11 @@ class PostgresGraphRAG:
         `event_bus` (an `observability.EventBus`) is optional; omit it to
         get the default logging-only sink.
         """
-        from .tenancy import SecureGraphStore, _vector_column_type as _vt
         from .tenant_engine import TenantGraphRAG
 
-        if not self._runtime_url:
-            raise ValueError(
-                "for_tenant() requires PostgresGraphRAG to be constructed with "
-                "runtime_url set to the restricted RLS runtime role's connection string."
-            )
-        if self._secure_store is None:
-            vector_type = _vt(self.extractor.config["dimension"])
-            self._secure_store = SecureGraphStore(self._runtime_url, vector_type=vector_type)
         return TenantGraphRAG(
             tenant_id=tenant_id,
-            store=self._secure_store,
+            store=self._get_or_create_store(),
             extractor=self.extractor,
             chunker=self.chunker,
             ingestion_config=self.ingestion_config,

@@ -927,6 +927,65 @@ async def _call(session, name, args):
     return result.structured_content["result"]
 
 
+# ----------------------------------------------------------------------
+# LEGACY_DELETION_PLAN.md R3: for_tenant() and the MCP lifespan must share
+# one store-construction path (PostgresGraphRAG._get_or_create_store()),
+# not two independent copies that can diverge on the error path.
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mcp_lifespan_and_for_tenant_share_the_same_store(mcp_rag):
+    from mcp import ClientSession
+    from mcp.client._memory import InMemoryTransport
+
+    from postgres_graph_rag.mcp_server import build_server
+
+    server = build_server(mcp_rag, stdio_tenant_id=tid(), enable_mutations=False)
+    transport = InMemoryTransport(server)
+    async with transport._connect() as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            store_from_lifespan = mcp_rag._secure_store
+
+    engine = mcp_rag.for_tenant(tid())
+    assert engine._store is store_from_lifespan, (
+        "for_tenant() must reuse the exact store instance the MCP lifespan "
+        "already constructed, not build a second one"
+    )
+
+
+@pytest.mark.asyncio
+async def test_for_tenant_and_mcp_lifespan_raise_the_same_error_without_runtime_url():
+    from postgres_graph_rag import PostgresGraphRAG
+    from postgres_graph_rag.mcp_server import build_server
+
+    rag = PostgresGraphRAG(postgres_url=POSTGRES_URL, openai_api_key="test", runtime_url=None)
+
+    with pytest.raises(ValueError, match="runtime_url"):
+        rag.for_tenant(tid())
+
+    server = build_server(rag, stdio_tenant_id=tid(), enable_mutations=False)
+    from mcp import ClientSession
+    from mcp.client._memory import InMemoryTransport
+
+    transport = InMemoryTransport(server)
+    # The lifespan runs inside an anyio task group, which wraps the raised
+    # ValueError in an exception group rather than letting it propagate
+    # bare -- unwrap it (via `.exceptions`, duck-typed rather than naming
+    # `BaseExceptionGroup` directly, since that name is only a builtin on
+    # Python >= 3.11 and this project supports >= 3.10) to confirm it's the
+    # same missing-runtime_url error for_tenant() raises, not just
+    # "something failed."
+    with pytest.raises(Exception) as exc_info:
+        async with transport._connect() as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+    inner = exc_info.value.exceptions[0] if hasattr(exc_info.value, "exceptions") else exc_info.value
+    assert isinstance(inner, ValueError)
+    assert "runtime_url" in str(inner)
+
+
 @pytest.mark.asyncio
 async def test_mcp_read_only_tools_available_without_mutations(mcp_rag):
     from mcp import ClientSession

@@ -101,16 +101,13 @@ def build_server(
 
     @asynccontextmanager
     async def lifespan(_server: MCPServer):
-        if rag._secure_store is None:
-            # Mirrors for_tenant()'s lazy store initialization, without
-            # needing a tenant_id up front (the store itself isn't
-            # tenant-specific — tenant scoping happens per-call via
-            # tenant_connection()).
-            from .tenancy import SecureGraphStore, _vector_column_type as _vt
-
-            vector_type = _vt(rag.extractor.config["dimension"])
-            rag._secure_store = SecureGraphStore(rag._runtime_url, vector_type=vector_type)
-        communities = CommunityEngine(rag._secure_store)
+        # `_get_or_create_store()` is the same construction path
+        # `for_tenant()` uses -- the store itself isn't tenant-specific
+        # (tenant scoping happens per-call via tenant_connection()), so no
+        # tenant_id is needed up front here, but the lazy-init and
+        # missing-runtime_url validation must be identical either way.
+        store = rag._get_or_create_store()
+        communities = CommunityEngine(store)
         yield _LifespanState(rag, communities, tenant_resolver)
 
     server = MCPServer(name=name, lifespan=lifespan)
