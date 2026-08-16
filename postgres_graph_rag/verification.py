@@ -246,6 +246,18 @@ def evaluate_policy(
         # already passed existence-checking upstream) is accepted without
         # inspecting its verdict -- matching tenant_engine.py's current
         # `grounded = bool(markers) and not invalid`.
+        #
+        # NOTE: tenant_engine.answer() never actually reaches this branch in
+        # citation_only mode -- it returns from its own self-contained
+        # citation_only block (the actual marker-existence check) before
+        # evaluate_policy is ever called; the only production call site
+        # here sits in the "verified"/"verified_strict" arm. This branch
+        # exists because evaluate_policy is exported public API and
+        # GroundingMode admits citation_only, so a direct caller passing
+        # that mode still needs a defined, correct result -- not because
+        # answer() depends on it. See tests/test_grounding_rule_parity.py
+        # for the characterization test binding tenant_engine.answer()'s
+        # real citation_only logic against the frozen benchmark baseline.
         return "citation_valid_only"
 
     contradicted = any(v == "contradicted" for v in verdicts)
