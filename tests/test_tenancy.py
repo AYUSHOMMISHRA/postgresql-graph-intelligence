@@ -211,32 +211,77 @@ async def test_cross_tenant_traversal_seed_does_not_cross_over(store):
 
 @pytest.mark.asyncio
 async def test_legacy_data_migration_preserves_ids(admin_conn):
+    """Seeds `public.graph_nodes`/`graph_edges` directly via raw SQL to
+    simulate a pre-existing single-tenant deployment, since the
+    `DatabaseManager` class that used to create this data has been removed
+    (no customers depended on it, so it was deleted rather than kept
+    deprecated). The schema seeded here matches exactly what
+    `tenancy.py::_migrate_legacy_data()` expects to read from
+    `public.graph_nodes`/`graph_edges` -- this test only replaces *how* that
+    legacy-shaped data gets there, not what `migrate_legacy_data=True` does
+    with it once it exists."""
+    from postgres_graph_rag.tenancy import LEGACY_TENANT_ID
+
     async with admin_conn.cursor() as cur:
         await cur.execute(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE")
         await cur.execute("DROP TABLE IF EXISTS ingested_chunks CASCADE")
         await cur.execute("DROP TABLE IF EXISTS graph_edges CASCADE")
         await cur.execute("DROP TABLE IF EXISTS graph_nodes CASCADE")
+        await cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+
+        await cur.execute(
+            f"""
+            CREATE TABLE graph_nodes (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                namespace TEXT NOT NULL,
+                content TEXT NOT NULL,
+                embedding vector({DIM}) NOT NULL,
+                metadata JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        await cur.execute(
+            """
+            CREATE TABLE graph_edges (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                namespace TEXT NOT NULL,
+                source_node_id UUID NOT NULL REFERENCES graph_nodes(id),
+                target_node_id UUID NOT NULL REFERENCES graph_nodes(id),
+                relation TEXT NOT NULL,
+                weight DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+                metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+
+        await cur.execute(
+            "INSERT INTO graph_nodes (namespace, content, embedding) VALUES (%s, %s, %s) RETURNING id",
+            ("legacy-ns", "PreMigration", vec(0)),
+        )
+        pre_migration_id = str((await cur.fetchone())[0])
+
+        await cur.execute(
+            "INSERT INTO graph_nodes (namespace, content, embedding) VALUES (%s, %s, %s) RETURNING id",
+            ("legacy-ns", "checkout-service", vec(1)),
+        )
+        checkout_id = str((await cur.fetchone())[0])
+        await cur.execute(
+            "INSERT INTO graph_nodes (namespace, content, embedding) VALUES (%s, %s, %s) RETURNING id",
+            ("legacy-ns", "auth-service", vec(2)),
+        )
+        auth_id = str((await cur.fetchone())[0])
+        node_ids = [checkout_id, auth_id]
+
+        await cur.execute(
+            "INSERT INTO graph_edges (namespace, source_node_id, target_node_id, relation, weight) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            ("legacy-ns", checkout_id, auth_id, "depends_on", 3.0),
+        )
         await admin_conn.commit()
 
-    from postgres_graph_rag.database import DatabaseManager
-    from postgres_graph_rag.tenancy import LEGACY_TENANT_ID
-
-    legacy_db = DatabaseManager(POSTGRES_URL)
-    await legacy_db.setup_database(embedding_dimension=DIM)
-    ids = await legacy_db.upsert_nodes_batch(
-        [{"content": "PreMigration", "embedding": vec(0)}], namespace="legacy-ns"
-    )
-    node_ids = await legacy_db.upsert_nodes_batch(
-        [
-            {"content": "checkout-service", "embedding": vec(1)},
-            {"content": "auth-service", "embedding": vec(2)},
-        ],
-        namespace="legacy-ns",
-    )
-    await legacy_db.upsert_edge(
-        node_ids[0], node_ids[1], "depends_on", namespace="legacy-ns", weight=3.0,
-    )
-    await legacy_db.close()
+    ids = [pre_migration_id]
 
     await migrate_schema(
         admin_url=POSTGRES_URL,

@@ -11,17 +11,15 @@ and database-enforced tenancy in one asynchronous Python library. The project
 prioritizes explainable retrieval, operational safety, and deployable Postgres
 infrastructure over opaque agent loops or a separate graph database.
 
-> **Primary API:** new deployments should use the RLS-secured
+> **Primary API:** all deployments use the RLS-secured
 > `setup_secure()` → `for_tenant()` → `add_document()`/`retrieve()`/`answer()`
-> path. The original namespace-only `add_texts()`/`query()` API is
-> deprecated (emits `DeprecationWarning`) and receives no correctness or
-> feature work — see [Legacy API migration](#legacy-api-migration) for the
-> full gap list and how to move existing data over.
+> path — see [Multi-Tenancy & Security](#multi-tenancy--security).
 
 Technical documentation: [Architecture](docs/architecture.md) ·
 [Evaluation](docs/evaluation.md) · [Security](docs/security.md) ·
-[Operations](docs/operations.md) · [Benchmark result](docs/results/incident-benchmark-v1.md) ·
-[CTO demo](docs/demo.md)
+[Operations](docs/operations.md) ·
+[Engineering Reviews](docs/reviews/) ·
+[CTO demo](#production-pilot-demo)
 
 Most RAG systems are Flatlanders. They use vector similarity to find related text, but they are fundamentally blind to **relationships**. If you ask your RAG "How is Person A connected to Project B through their shared dependencies?", standard vector search fails because the answer isn't in a single chunk—it's in the **links** between them.
 
@@ -44,9 +42,9 @@ This library is built for **Postgres Maximalists**. It leverages the engine you 
 - **Infrastructure:** Postgres is the only database (via `pgvector` + `pg_trgm`).
 - **Intelligence:** Hosted LLMs (OpenAI or Gemini) for extraction. Freely configurable through `postgres_graph_rag/models.py`.
 - **Simplicity:** Native Async Python + SQL.
-- **Scalability:** High-performance connection pooling, bulk single-round-trip writes, and namespace-aware design. The recommended, actively-developed path is Postgres Row-Level Security-enforced multi-tenancy (`for_tenant()`, see [Multi-Tenancy & Security](#multi-tenancy--security)); `namespace` is a partition *within* a tenant, not a substitute for one. The legacy namespace-only path (`add_texts()`/`query()` without `for_tenant()`) remains available for compatibility but is deprecated — see [Legacy API migration](#legacy-api-migration).
+- **Scalability:** High-performance connection pooling, bulk single-round-trip writes, and namespace-aware design. Postgres Row-Level Security-enforced multi-tenancy (`for_tenant()`, see [Multi-Tenancy & Security](#multi-tenancy--security)) is the only engine; `namespace` is a partition *within* a tenant, not a substitute for one.
 
-> **Known scaling limitation:** all namespaces currently share one `graph_nodes`/`graph_edges` table pair. At the scales benchmarked so far (1K–10K nodes/namespace, see [Benchmarks](#benchmarks)), Postgres' planner prefers a namespace-filtered bitmap scan + sort over the HNSW ANN index, because per-namespace row counts are small relative to the whole table. This is fine at that scale; if you operate many large tenants in one deployment, re-run `benchmarks/bench_scale.py` against your own shape before assuming the HNSW index is doing the work.
+> **Known scaling limitation:** all namespaces currently share one `graph_nodes`/`graph_edges` table pair. At the scales exercised so far (1K–10K nodes/namespace), Postgres' planner prefers a namespace-filtered bitmap scan + sort over the HNSW ANN index, because per-namespace row counts are small relative to the whole table. This is fine at that scale; if you operate many large tenants in one deployment, benchmark your own shape before assuming the HNSW index is doing the work (see [Benchmarks](#benchmarks) for the current state of scale-benchmarking tooling).
 
 ---
 
@@ -104,8 +102,7 @@ async def quick_start():
 ```
 
 For a no-key, deterministic setup use `postgres-graph-rag-demo`; see
-[Operations](docs/operations.md). The older `setup()`/`add_texts()` API is
-deprecated — see [Legacy API migration](#legacy-api-migration).
+[Operations](docs/operations.md).
 
 ---
 
@@ -169,8 +166,6 @@ await engine.add_document("The Q3 roadmap prioritizes onboarding flow.", namespa
 result = await engine.retrieve("What does the roadmap prioritize?", namespace="project_a")
 ```
 
-The legacy path's namespace-only isolation (`add_texts()`/`query()` without `for_tenant()`) is covered by `tests/test_database.py::test_namespace_isolation_in_traversal_and_vector_search`, but it's application-level `WHERE namespace = ...` filtering, not a database-enforced boundary — see [Legacy API migration](#legacy-api-migration) for what that gap actually means.
-
 ### 5. Directed & Filtered Traversal
 Retrieval and ingestion behavior are tunable via `retrieval_config` / `ingestion_config`, or per-call keyword overrides on `engine.retrieve()` / `engine.answer()`:
 
@@ -213,18 +208,6 @@ rag = PostgresGraphRAG(
 A chunk that keeps failing extraction after retries is logged and skipped —
 it does not abort the rest of the batch, and it is **not** marked as
 ingested, so a later retry of the same source will retry just that chunk.
-
-> **Idempotency skip is disabled whenever you pass `metadata`** — legacy `add_texts()` only. If a call
-> to `add_texts()` includes a `metadata` dict, it always runs in full (never
-> skipped as a duplicate), even if the text is identical to a previous call.
-> (The secure `add_document()` path's idempotency works differently — see
-> the atomic hash/chunk publication described above — and doesn't have this
-> particular special case.)
-> This is deliberate: skip-if-seen has no way to attach new metadata to
-> entities from a chunk that was never re-processed, so silently skipping
-> would silently drop that metadata. Found via a real end-to-end test
-> failure (`test_metadata_integrity_via_jsonb_merge`) while re-running the
-> suite against a live database — not a hypothetical edge case.
 
 > **Known limitation — chunk idempotency has no document identity.** Skip-if-seen
 > is keyed on `(namespace, chunk_hash)` only. If identical text appears in two
@@ -276,102 +259,24 @@ model-proposed supporting quote that isn't actually a literal substring of
 the cited evidence is rejected, not trusted.
 
 See `benchmarks/grounding/` for the evaluation harness this was built
-against, and `docs/results/grounding-benchmark-deterministic-verifier.md`
-for a measured before/after: contradicted-claim escape rate 100% → 0% from
-the deterministic layers alone (steps 1-3 above), at an expected,
-documented cost to recall that the model layer (step 4) exists to recover.
-
----
-
-## Legacy API migration
-
-`PostgresGraphRAG.setup()`, `.add_texts()`, `.query()`, and `.query_structured()`
-are the original single-tenant path, predating `SecureGraphStore`/`for_tenant()`.
-They still work — each now emits a `DeprecationWarning` pointing here — but
-they are frozen: **no correctness or feature work since has been backported
-to them.** Concretely, the legacy path does not have:
-
-- **Atomic document publication.** `add_texts()`'s content-hash check and
-  its chunk writes are separate operations, not one transaction — the
-  exact permanent-retry-hole class of bug the secure path's
-  `add_document()` was fixed to close (see the CHANGELOG's Release 1.1
-  entries). A failure between them can leave a hash that silently skips
-  all future retries with the same text.
-- **`extraction_status` tracking.** No way to tell "chunk is text-searchable
-  but graph extraction hasn't finished" apart from "fully graph-ready."
-- **Evidence provenance.** No `documents`/`entity_mentions`/`edge_mentions`
-  tables — "which documents mention X" isn't answerable, and deleting one
-  document's contribution isn't safely separable from another's sharing
-  the same namespace.
-- **Retry recovery without the original text.** No `retry_failed_chunks()`
-  equivalent; a failed extraction requires re-calling `add_texts()` with
-  the source text still in hand.
-- **Row-Level Security.** `namespace` is an application-level filter, not
-  a database-enforced tenant boundary — see [Multi-Tenancy & Security](#multi-tenancy--security).
-- **Verified grounding.** No `answer()` method at all on the legacy path,
-  so none of `citation_only`/`verified`/`verified_strict` grounding modes
-  ([section 7](#7-grounding-modes-entailment-verification-not-just-citation-validity))
-  are available.
-
-### Migrating existing legacy data
-
-If you have data under the old single-tenant schema (`public.graph_nodes`/
-`public.graph_edges`, from `DatabaseManager`), `setup_secure()` can backfill
-it into the secure schema under a fixed legacy tenant, preserving node/edge
-IDs:
-
-```python
-await rag.setup_secure(
-    admin_url=ADMIN_DSN,
-    runtime_role="pgr_runtime",
-    runtime_password=os.environ["PGR_RUNTIME_PASSWORD"],
-    migrate_legacy_data=True,
-)
-
-from postgres_graph_rag.tenancy import LEGACY_TENANT_ID
-legacy_engine = rag.for_tenant(LEGACY_TENANT_ID)
-result = await legacy_engine.retrieve("What does checkout-service depend on?", namespace="legacy-ns")
-```
-
-Migrated nodes and edges become graph-only — there's no source document to
-backfill a chunk/mention for, since the legacy schema never recorded
-provenance. Migrated edges carry their old `weight` forward as
-`manual_weight` (not left at its default), so they remain traversable
-under the secure path's evidence-support filtering; this is covered by
-`tests/test_tenancy.py::test_legacy_data_migration_preserves_ids`.
-
-### Removal policy
-
-- Deprecated immediately (current release): warnings on all four methods,
-  no functional change.
-- No correctness features will be backported — only security-critical
-  fixes, if any are ever found.
-- Targeted for removal in `1.0.0`, or after at least one published
-  deprecation release, whichever gives downstream users more notice.
+against and `CHANGELOG.md` for a measured before/after: contradicted-claim
+escape rate 100% → 0% from the deterministic layers alone (steps 1-3
+above), at an expected, documented cost to recall that the model layer
+(step 4) exists to recover.
 
 ---
 
 ## Benchmarks
 
-`benchmarks/bench_scale.py` populates synthetic graphs (no LLM calls — embeddings/edges are generated locally) and measures latency at increasing scale. Sample run on a local `pgvector/pgvector:pg16` container (M-series laptop, single connection, no HNSW tuning beyond defaults):
-
-| Scale         | Populate throughput | `vector_search` p50/p95 | `traverse_graph` (2 hops) p50/p95 |
-|---------------|---------------------|--------------------------|-------------------------------------|
-| 1,000 nodes   | ~440 nodes/s        | 2.3ms / 7.9ms            | 46ms / 55ms                         |
-| 10,000 nodes  | ~320 nodes/s        | 6.6ms / 9.5ms            | 67ms / 124ms                        |
-
-`EXPLAIN ANALYZE` at both scales shows the planner choosing a namespace
-bitmap-index scan + in-memory sort over the HNSW index (see the scaling
-note above) — worth re-checking at your own tenant/graph size, since that
-crossover point is workload-dependent. Multi-hop traversal latency is
-dominated by the recursive CTE re-joining `graph_edges`/`graph_nodes` per
-depth level, not by the vector search step.
-
-Re-run it yourself:
-```bash
-POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/graph_rag \
-  python benchmarks/bench_scale.py
-```
+Scale-benchmarking tooling (`benchmarks/bench_scale.py`) previously measured
+the single-tenant engine directly; that engine has since been removed (see
+[CHANGELOG.md](CHANGELOG.md)), so the tooling was removed with it rather
+than left broken. A `SecureGraphStore`/`TenantGraphRAG`-based replacement —
+scale-tested against the RLS-secured path, including its policy-evaluation
+and transaction-local tenant-context overhead — is planned; see the
+Roadmap. Until it lands, treat scale characteristics at high per-namespace
+node counts as unmeasured rather than assuming the prior numbers still
+apply.
 
 ---
 
@@ -388,8 +293,8 @@ This project follows the **"Postgres Maximalism"** philosophy: Stop building new
 
 ### ✅ Phase 2: High-Precision Retrieval (Current Release)
 - [x] **Directed & Filtered Traversal:** Optional strict source→target direction, relation allow/deny lists, and minimum-weight thresholds.
-- [x] **Explainable Scoring:** Every retrieved node carries a hop distance and a score (seed relevance × per-hop decay × edge weight); `query_structured()` exposes it instead of a flattened string.
-- [x] **Layered Entity Resolution:** Whitespace normalization → exact match → `pg_trgm` trigram candidate generation confirmed by embedding cosine similarity, so lookalike names don't merge without semantic confirmation. Adversarial cases are covered in `tests/test_database.py`.
+- [x] **Explainable Scoring:** Every retrieved node carries a hop distance and a score (seed relevance × per-hop decay × edge weight), exposed on `retrieve()`'s structured result instead of a flattened string.
+- [x] **Layered Entity Resolution:** Whitespace normalization → exact match → `pg_trgm` trigram candidate generation confirmed by embedding cosine similarity, so lookalike names don't merge without semantic confirmation. Adversarial cases are covered in `tests/test_tenancy.py`.
 - [x] **Relationship Scoring:** Edge weight increments automatically on repeated mention of the same `(source, target, relation)` triple.
 - [x] **Idempotent Ingestion:** Chunk-content hashing skips re-running (paid) LLM extraction when a source is re-ingested unchanged.
 - [x] **Ingestion Reliability:** Bounded-concurrency extraction with retry/backoff; a chunk that keeps failing is skipped and logged, not fatal to the batch.
@@ -399,7 +304,7 @@ This project follows the **"Postgres Maximalism"** philosophy: Stop building new
 - [x] **Evidence-Grounded Schema:** New `documents` / `document_chunks` / `entity_mentions` tables give real provenance — "which documents mention entity X" is an actual query (`get_mentioning_documents()`), not a limitation to document away. Deleting a document cascades its chunks/mentions but preserves entities/edges still supported by other documents.
 - [x] **Lease-Based Extraction Cache:** `chunk_extractions` claims a lease before calling the LLM for a given content hash; concurrent ingestion of the same content only pays for one extraction call, with automatic reclaim of expired/failed leases.
 - [x] **Tenant Isolation via Postgres Row-Level Security:** `tenant_id` is enforced at the database level, not just by application-level `WHERE` clauses — fail-closed policies (`current_setting(..., true)`), transaction-local tenant context (safe under connection pooling/reuse), and a dedicated non-superuser, `NOBYPASSRLS` runtime role. See [Multi-Tenancy & Security](#multi-tenancy--security) below.
-- [x] **Legacy Data Migration:** Pre-multi-tenancy `public.graph_nodes`/`graph_edges` data (from `DatabaseManager`) backfills into the new schema under a fixed legacy tenant, preserving IDs.
+- [x] **Legacy Data Migration:** Pre-multi-tenancy `public.graph_nodes`/`graph_edges` data (from a prior single-tenant deployment) backfills into the new schema under a fixed legacy tenant, preserving IDs.
 - [x] **Metadata Pruning:** `hybrid_search`/`traverse_graph` take a typed `metadata_filter` DSL (`postgres_graph_rag/filters.py`) supporting `eq`/`neq`/`gt`/`gte`/`lt`/`lte`/`in` in addition to the original JSONB-containment form — "only traverse relationships from documents updated in the last 90 days" is now literally expressible and tested, not just containment on exact key/value pairs.
 - [ ] **Zero-mention node pruning:** Fully-orphaned entities (no remaining mentions from any document) are left in place rather than proactively swept — a reasonable follow-up if storage growth from orphans matters in practice.
 
@@ -450,7 +355,7 @@ Retrieval modes are explicit: `vector` is the lexical/vector baseline, `hybrid` 
 
 ## Multi-Tenancy & Security
 
-`postgres_graph_rag.tenancy` (`SecureGraphStore`) is the recommended, actively-developed engine. It's additive in the sense that adopting it doesn't require deleting existing data first (`migrate_legacy_data=True` backfills it, see [Legacy API migration](#legacy-api-migration)) — but it is not a parallel, equally-supported option alongside the single-tenant `DatabaseManager` path; that path is deprecated.
+`postgres_graph_rag.tenancy` (`SecureGraphStore`) is the only engine.
 
 ```python
 from postgres_graph_rag import PostgresGraphRAG
@@ -484,6 +389,33 @@ print(result.to_context_string())
 - RLS only restricts non-owner, non-`BYPASSRLS` roles. `setup_secure()` creates a dedicated runtime role with `NOSUPERUSER NOBYPASSRLS`, separate from the admin/owner role that runs migrations — connecting as the admin role for regular queries would make every RLS policy a no-op. `test_runtime_role_cannot_bypass_rls_attributes` guards against this regressing silently.
 
 **What this does *not* protect against:** RLS protects trusted backend code from a missing tenant filter. It does not protect against an end user who has the database credential directly and can call `set_config` themselves — the runtime role's credential must stay server-side, never handed to a client.
+
+### Migrating data from a prior single-tenant deployment
+
+If you have data under the old single-tenant schema (`public.graph_nodes`/
+`public.graph_edges`, from a prior single-tenant deployment), `setup_secure()`
+can backfill it into the secure schema under a fixed legacy tenant,
+preserving node/edge IDs:
+
+```python
+await rag.setup_secure(
+    admin_url=ADMIN_DSN,
+    runtime_role="pgr_runtime",
+    runtime_password=os.environ["PGR_RUNTIME_PASSWORD"],
+    migrate_legacy_data=True,
+)
+
+from postgres_graph_rag.tenancy import LEGACY_TENANT_ID
+legacy_engine = rag.for_tenant(LEGACY_TENANT_ID)
+result = await legacy_engine.retrieve("What does checkout-service depend on?", namespace="legacy-ns")
+```
+
+Migrated nodes and edges become graph-only — there's no source document to
+backfill a chunk/mention for, since the legacy schema never recorded
+provenance. Migrated edges carry their old `weight` forward as
+`manual_weight` (not left at its default), so they remain traversable
+under the secure path's evidence-support filtering; this is covered by
+`tests/test_tenancy.py::test_legacy_data_migration_preserves_ids`.
 
 ---
 
@@ -696,21 +628,11 @@ uv sync --extra dev
 # Bring up Postgres + pgvector
 docker compose up -d
 
-# Run tests — unit tests always run; DB-level tests in test_database.py and
-# the RLS/multi-tenancy/communities/observability/MCP tests in
-# test_tenancy.py run automatically against POSTGRES_URL (no LLM key
-# needed, and test_tenancy.py needs a POSTGRES_URL with permission to
+# Run tests — unit tests always run; the RLS/multi-tenancy/communities/
+# observability/MCP tests in test_tenancy.py run automatically against
+# POSTGRES_URL (no LLM key needed; needs a POSTGRES_URL with permission to
 # CREATE ROLE); the MCP tests there are skipped if the `mcp` package isn't
 # installed.
-#
-# The end-to-end tests in test_integration.py/test_scenarios.py make real,
-# billed OpenAI/Gemini API calls (gated only on POSTGRES_URL + the
-# relevant API key being set, no mocking) and are marked `live_provider` --
-# pyproject.toml's default addopts excludes that marker, so a plain
-# `pytest`/`uv run pytest` run never triggers them even if you happen to
-# have a real key set in your environment. Run them deliberately when you
-# want that check:
-#   uv run pytest -m live_provider
 #
 # Note: test_tenancy.py drops and recreates the `postgres_graph_rag` schema
 # and `pgr_test_runtime`/`pgr_runtime` roles — safe against a fresh dev
@@ -718,7 +640,4 @@ docker compose up -d
 # tenant data under that schema name (see the note at the top of
 # tests/test_tenancy.py).
 uv run pytest
-
-# Benchmark at 1K/10K node scale
-uv run python benchmarks/bench_scale.py
 ```

@@ -4,7 +4,7 @@
 
 Run `setup_secure()` with an admin connection. Run ingestion and retrieval only
 with the restricted runtime connection. `health` reports secure-schema settings
-rather than merely opening the legacy pool.
+directly rather than a bare connectivity check.
 
 ## Schema compatibility
 

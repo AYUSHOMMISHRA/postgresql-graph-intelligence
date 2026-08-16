@@ -39,6 +39,65 @@ are gone.
   historical documents), with a short addendum noting the files it cited as
   demo backup material no longer exist.
 
+## Unreleased — Legacy single-tenant engine removed (not just deprecated)
+
+The legacy single-tenant engine (`DatabaseManager` in `database.py`, and
+`PostgresGraphRAG.setup()`/`.add_texts()`/`.query()`/`.query_structured()`
+in `core.py`) has been deleted entirely, ahead of the `1.0.0` removal
+target the prior deprecation entry below announced.
+
+### Why now, not at `1.0.0`
+
+The original deprecation timeline assumed there could be existing external
+callers depending on the legacy API, and gave them a full major-version
+notice window before removal. At this stage there are no customers and no
+external installs depending on it, so that compatibility window was
+protecting against a case that doesn't exist yet — removing it now avoids
+carrying two parallel architectures for no one's benefit.
+
+### Removed
+
+- `DatabaseManager` class (`database.py`) and its connection-pool/query
+  surface. The handful of shared leaf utility functions the secure path
+  also uses (`normalize_entity`, `content_hash`, `_vector_column_type`,
+  `_as_float_list`, `_cosine_similarity`, `MAX_HOPS_HARD_LIMIT`,
+  `MAX_ROWS_PER_STATEMENT`) remain in `database.py`, untouched.
+- `PostgresGraphRAG.setup()`, `.add_texts()`, `.query()`,
+  `.query_structured()`, and the `RetrievedNode`/`RetrievedEdge`/
+  `RetrievalResult` dataclasses those methods returned.
+- `benchmarks/bench_scale.py` (it exclusively measured `DatabaseManager`
+  and cannot function without it). A `SecureGraphStore`-based replacement
+  is planned; see the README's Benchmarks section and Roadmap.
+- `tests/test_core.py`, `tests/test_integration.py`,
+  `tests/test_scenarios.py` in full (legacy-only); `tests/test_database.py`
+  trimmed to just the two leaf-utility-function tests it still covers.
+  `test_integration.py`/`test_scenarios.py` were the only real-LLM
+  (`live_provider`-marked) end-to-end tests in the suite — that category of
+  coverage is at zero for the secure path until a replacement is written;
+  tracked as a known, accepted gap, not silently dropped.
+
+### Kept, unaffected
+
+- The legacy-data migration feature (`migrate_legacy_data=True` on
+  `setup_secure()`, `LEGACY_TENANT_ID`) — it only ever read
+  `public.graph_nodes`/`public.graph_edges` via raw SQL, never
+  `DatabaseManager` itself, so it survives this removal untouched.
+  `tests/test_tenancy.py::test_legacy_data_migration_preserves_ids` now
+  seeds that legacy-shaped data with raw SQL instead of `DatabaseManager`,
+  since the class it used to construct is gone; the migration behavior it
+  verifies is unchanged.
+
+### Documentation
+
+- README's "Legacy API migration" section removed; the still-relevant
+  "Migrating existing legacy data" content moved into "Multi-Tenancy &
+  Security" under "Migrating data from a prior single-tenant deployment."
+  The cross-reference to it from the prior deprecation entry below is now
+  stale as a result — that entry is left otherwise unedited as an accurate
+  historical record.
+- See `docs/decisions/003-remove-legacy-engine.md` for the ADR recording
+  this decision, which supersedes the "no breaking removal before a major
+  release" policy stated in `docs/decisions/002-secure-api-primary.md`.
 
 ## Unreleased — PR 6 closure: reviewed-answer-key integrity validation
 

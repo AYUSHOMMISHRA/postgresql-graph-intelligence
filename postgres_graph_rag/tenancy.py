@@ -1,11 +1,10 @@
 """Tenant-aware, RLS-secured storage layer (v0.3).
 
-This module is additive: it does not touch the existing single-tenant
-`DatabaseManager` (`database.py`), which remains available for callers who
-don't need multi-tenancy. `SecureGraphStore` here is the v0.3 evidence-
-grounded, tenant-isolated engine — new tables live in the `postgres_graph_rag`
-Postgres schema, separate from the legacy `public.graph_nodes`/`graph_edges`
-tables.
+`SecureGraphStore` here is the v0.3 evidence-grounded, tenant-isolated
+engine — new tables live in the `postgres_graph_rag` Postgres schema,
+separate from the legacy `public.graph_nodes`/`graph_edges` tables that a
+prior single-tenant deployment may still hold (see `migrate_legacy_data`
+below for backfilling that data in).
 
 Security model
 ---------------

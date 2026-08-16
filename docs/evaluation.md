@@ -33,7 +33,7 @@ The report compares `vector`, `hybrid`, and `hybrid_graph` using Recall@5,
 Precision@5, MRR, path accuracy, source recall, negative false-connection rate,
 context tokens, and p50/p95/p99 latency.
 
-The latest tracked run is [incident-benchmark-v1](results/incident-benchmark-v1.md).
+The latest tracked run is recorded in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Acceptance gates
 

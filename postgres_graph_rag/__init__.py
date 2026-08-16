@@ -1,4 +1,4 @@
-from .core import PostgresGraphRAG, RetrievalResult, RetrievedNode, RetrievedEdge
+from .core import PostgresGraphRAG
 from .tenant_engine import (
     TenantGraphRAG,
     TenantRetrievalResult,
@@ -34,9 +34,6 @@ from .model_verifier import ModelEntailmentVerifier, VerificationTelemetry
 
 __all__ = [
     "PostgresGraphRAG",
-    "RetrievalResult",
-    "RetrievedNode",
-    "RetrievedEdge",
     "TenantGraphRAG",
     "TenantRetrievalResult",
     "TenantRetrievedNode",
