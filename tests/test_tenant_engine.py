@@ -621,3 +621,45 @@ async def test_answer_verified_mode_invalid_grounding_mode_raises():
     store.hybrid_search.return_value = []
     with pytest.raises(ValueError, match="grounding_mode must be one of"):
         await engine(store).answer("q", "ns", grounding_mode="verified_but_lazy")
+
+
+# ----------------------------------------------------------------------
+# LEGACY_DELETION_PLAN.md G14: facade configuration forwarding.
+#
+# G1-G6 (tests/test_secure_path_characterization.py) prove SecureGraphStore
+# honors directed/relation_types/exclude_relation_types/min_weight/
+# score_decay/max_neighbors_per_node. This proves retrieve() actually passes
+# its configured values through to traverse_graph() -- storage could keep
+# working perfectly while the public retrieval path silently stopped
+# forwarding a parameter, and no other test would catch that.
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_retrieve_forwards_retrieval_config_into_traverse_graph():
+    store = AsyncMock()
+    chunk_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    store.hybrid_search.return_value = [hit(chunk_id, "src", "auth-service depends on billing", 0.05)]
+    store.mentioned_node_scores_for_chunks.return_value = {"node-a": 1.0}
+    store.traverse_graph.return_value = {"nodes": [], "edges": []}
+
+    non_default_overrides = dict(
+        hops=4,
+        directed=True,
+        relation_types=["depends_on"],
+        exclude_relation_types=["owned_by"],
+        min_weight=2.5,
+        score_decay=0.3,
+        max_neighbors_per_node=7,
+    )
+
+    await engine(store, **non_default_overrides).retrieve("Who depends on billing?", "incidents")
+
+    forwarded = store.traverse_graph.call_args.kwargs
+    assert forwarded["max_hops"] == 4
+    assert forwarded["directed"] is True
+    assert forwarded["relation_types"] == ["depends_on"]
+    assert forwarded["exclude_relation_types"] == ["owned_by"]
+    assert forwarded["min_weight"] == 2.5
+    assert forwarded["score_decay"] == 0.3
+    assert forwarded["max_neighbors_per_node"] == 7
