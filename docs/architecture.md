@@ -72,3 +72,18 @@ citations that do not correspond to retrieved chunks.
 - Changing embedding dimension requires re-embedding into a compatible schema.
 - The library returns evidence and an optional answer; it is not an autonomous
   investigation agent.
+- `database.py` is now leaf shared utilities only (`normalize_entity`,
+  `content_hash`, vector-type helpers, hop/row-count safety constants) — the
+  legacy `DatabaseManager` class that once justified the name is gone. The
+  module's name still describes what it isn't; a rename to `_db_utils.py` is
+  a tracked, deliberately deferred follow-up, not an oversight.
+- The citation-only grounding rule (`grounded = bool(markers) and not
+  invalid`) is intentionally implemented independently in three places:
+  `tenant_engine.answer()` (production), `verification.evaluate_policy()`'s
+  `citation_only` branch (unreachable from production but exported public
+  API `GroundingMode` admits), and `benchmarks/grounding/baseline_runner.py`
+  (a frozen "before" measurement). Consolidating them was considered and
+  rejected: coupling the benchmark's frozen baseline to the implementation
+  it measures would let the baseline drift silently whenever production
+  changes. A characterization test binding all three is tracked as a
+  separate grounding-refactor change, not folded into unrelated work.
