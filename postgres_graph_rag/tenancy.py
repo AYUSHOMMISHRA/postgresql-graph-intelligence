@@ -44,7 +44,8 @@ from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from .database import (
+from ._db_utils import (
+    _HNSW_HALFVEC_MAX_DIM,
     MAX_HOPS_HARD_LIMIT,
     MAX_ROWS_PER_STATEMENT,
     _as_float_list,
@@ -586,8 +587,6 @@ async def migrate_schema(
     DDL (two deployments migrating at once) is a real production hazard,
     not just a theoretical one.
     """
-    from .database import _HNSW_HALFVEC_MAX_DIM  # local import: avoid cycle at module load
-
     if not isinstance(embedding_dimension, int) or not (0 < embedding_dimension <= 16000):
         raise ValueError(f"Invalid embedding_dimension: {embedding_dimension!r}")
 

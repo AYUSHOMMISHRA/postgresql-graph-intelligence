@@ -28,8 +28,9 @@ jobs:
         # Bare invocation: pyproject.toml's addopts already excludes
         # live_provider by default, and test_tenancy.py self-skips without
         # POSTGRES_URL (set only in the postgres job below) --
-        # test_database.py no longer needs Postgres at all since
-        # DatabaseManager was removed, so it already runs here too --
+        # test_db_utils.py (formerly test_database.py) no longer needs
+        # Postgres at all since DatabaseManager was removed, so it already
+        # runs here too --
         # this picks up every new non-Postgres, non-live suite
         # (grounding benchmark/contract/verification/fixtures,
         # model_verifier, model_verifier_runner, extractor_generation)
