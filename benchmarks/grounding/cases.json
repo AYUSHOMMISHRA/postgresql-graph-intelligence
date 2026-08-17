@@ -1,0 +1,3106 @@
+{
+  "dataset_version": "grounding-benchmark-v1-candidate",
+  "case_count": 140,
+  "cases": [
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-001 depends on auth-service-001 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-001 depends on auth-service-001 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-001",
+      "split": "dev"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-002 depends on auth-service-002 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-002 depends on auth-service-002 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-002",
+      "split": "dev"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-003 depends on auth-service-003 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-003 depends on auth-service-003 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-003",
+      "split": "dev"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-004 depends on auth-service-004 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-004 depends on auth-service-004 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-004",
+      "split": "dev"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-005 depends on auth-service-005 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-005 depends on auth-service-005 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-005",
+      "split": "dev"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-006 depends on auth-service-006 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-006 depends on auth-service-006 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-006",
+      "split": "dev"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-007 depends on auth-service-007 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-007 depends on auth-service-007 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-007",
+      "split": "calibration"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-008 depends on auth-service-008 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-008 depends on auth-service-008 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-008",
+      "split": "calibration"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-009 depends on auth-service-009 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-009 depends on auth-service-009 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-009",
+      "split": "sealed"
+    },
+    {
+      "category": "explicit_supported_relationship",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-010 depends on auth-service-010 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-010 depends on auth-service-010 for session validation."
+      ],
+      "label": "supported",
+      "notes": "Direct, unambiguous entailment -- the baseline case a verifier must not regress on.",
+      "id": "explicit-supported-relationship-010",
+      "split": "sealed"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-001 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-001",
+      "split": "dev"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-002 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-002",
+      "split": "dev"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-003 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-003",
+      "split": "dev"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-004 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-004",
+      "split": "dev"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-005 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-005",
+      "split": "dev"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-006 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-006",
+      "split": "dev"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-007 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-007",
+      "split": "calibration"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-008 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-008",
+      "split": "calibration"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-009 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-009",
+      "split": "sealed"
+    },
+    {
+      "category": "valid_but_irrelevant_citation",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for checkout-service-010 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Citation ID exists in the retrieved pool (so a citation-only checker calls this grounded), but the cited text says nothing about the claimed dependency.",
+      "id": "valid-but-irrelevant-citation-010",
+      "split": "sealed"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy",
+          "ordinal": 0,
+          "content": "auth-service-001 depends on checkout-service-001 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-001",
+      "split": "dev"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy",
+          "ordinal": 0,
+          "content": "auth-service-002 depends on checkout-service-002 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-002",
+      "split": "dev"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy",
+          "ordinal": 0,
+          "content": "auth-service-003 depends on checkout-service-003 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-003",
+      "split": "dev"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy",
+          "ordinal": 0,
+          "content": "auth-service-004 depends on checkout-service-004 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-004",
+      "split": "dev"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy",
+          "ordinal": 0,
+          "content": "auth-service-005 depends on checkout-service-005 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-005",
+      "split": "dev"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy",
+          "ordinal": 0,
+          "content": "auth-service-006 depends on checkout-service-006 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-006",
+      "split": "dev"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy",
+          "ordinal": 0,
+          "content": "auth-service-007 depends on checkout-service-007 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-007",
+      "split": "calibration"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy",
+          "ordinal": 0,
+          "content": "auth-service-008 depends on checkout-service-008 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-008",
+      "split": "calibration"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy",
+          "ordinal": 0,
+          "content": "auth-service-009 depends on checkout-service-009 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-009",
+      "split": "sealed"
+    },
+    {
+      "category": "reversed_relationship",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy",
+          "ordinal": 0,
+          "content": "auth-service-010 depends on checkout-service-010 for rate-limit telemetry."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text asserts the dependency in the opposite direction.",
+      "id": "reversed-relationship-010",
+      "split": "sealed"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-topology",
+          "ordinal": 0,
+          "content": "checkout-service-001 monitors auth-service-001's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-001",
+      "split": "dev"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-topology",
+          "ordinal": 0,
+          "content": "checkout-service-002 monitors auth-service-002's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-002",
+      "split": "dev"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-topology",
+          "ordinal": 0,
+          "content": "checkout-service-003 monitors auth-service-003's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-003",
+      "split": "dev"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-topology",
+          "ordinal": 0,
+          "content": "checkout-service-004 monitors auth-service-004's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-004",
+      "split": "dev"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-topology",
+          "ordinal": 0,
+          "content": "checkout-service-005 monitors auth-service-005's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-005",
+      "split": "dev"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-topology",
+          "ordinal": 0,
+          "content": "checkout-service-006 monitors auth-service-006's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-006",
+      "split": "dev"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-topology",
+          "ordinal": 0,
+          "content": "checkout-service-007 monitors auth-service-007's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-007",
+      "split": "calibration"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-topology",
+          "ordinal": 0,
+          "content": "checkout-service-008 monitors auth-service-008's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-008",
+      "split": "calibration"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-topology",
+          "ordinal": 0,
+          "content": "checkout-service-009 monitors auth-service-009's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-009",
+      "split": "sealed"
+    },
+    {
+      "category": "same_entities_different_predicate",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-topology",
+          "ordinal": 0,
+          "content": "checkout-service-010 monitors auth-service-010's health-check endpoint every 30 seconds."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "Same two entities, but the cited relationship is monitoring, not dependency -- a verifier keying on entity co-occurrence alone would wrongly accept this.",
+      "id": "same-entities-different-predicate-010",
+      "split": "sealed"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-001 depends on auth-service-001 for session validation."
+        },
+        {
+          "source_id": "incident-001-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-001 does not depend on auth-service-001; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-001",
+      "split": "dev"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-002 depends on auth-service-002 for session validation."
+        },
+        {
+          "source_id": "incident-002-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-002 does not depend on auth-service-002; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-002",
+      "split": "dev"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-003 depends on auth-service-003 for session validation."
+        },
+        {
+          "source_id": "incident-003-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-003 does not depend on auth-service-003; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-003",
+      "split": "dev"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-004 depends on auth-service-004 for session validation."
+        },
+        {
+          "source_id": "incident-004-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-004 does not depend on auth-service-004; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-004",
+      "split": "dev"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-005 depends on auth-service-005 for session validation."
+        },
+        {
+          "source_id": "incident-005-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-005 does not depend on auth-service-005; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-005",
+      "split": "dev"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-006 depends on auth-service-006 for session validation."
+        },
+        {
+          "source_id": "incident-006-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-006 does not depend on auth-service-006; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-006",
+      "split": "dev"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-007 depends on auth-service-007 for session validation."
+        },
+        {
+          "source_id": "incident-007-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-007 does not depend on auth-service-007; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-007",
+      "split": "calibration"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-008 depends on auth-service-008 for session validation."
+        },
+        {
+          "source_id": "incident-008-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-008 does not depend on auth-service-008; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-008",
+      "split": "calibration"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-009 depends on auth-service-009 for session validation."
+        },
+        {
+          "source_id": "incident-009-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-009 does not depend on auth-service-009; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-009",
+      "split": "sealed"
+    },
+    {
+      "category": "conflicting_documents",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-postmortem",
+          "ordinal": 0,
+          "content": "checkout-service-010 depends on auth-service-010 for session validation."
+        },
+        {
+          "source_id": "incident-010-runbook",
+          "ordinal": 0,
+          "content": "checkout-service-010 does not depend on auth-service-010; it validates sessions locally."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The cited source alone supports the claim, but the retrieved pool contains a second source directly contradicting it -- an unresolved conflict a verifier should surface, not silently pick a side on.",
+      "id": "conflicting-documents-010",
+      "split": "sealed"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-001 outage?",
+      "claim": "checkout-service-001 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-001-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-001 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-001",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-002 outage?",
+      "claim": "checkout-service-002 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-002-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-002 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-002",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-003 outage?",
+      "claim": "checkout-service-003 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-003-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-003 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-003",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-004 outage?",
+      "claim": "checkout-service-004 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-004-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-004 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-004",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-005 outage?",
+      "claim": "checkout-service-005 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-005-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-005 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-005",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-006 outage?",
+      "claim": "checkout-service-006 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-006-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-006 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-006",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-007 outage?",
+      "claim": "checkout-service-007 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-007-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-007 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-007",
+      "split": "calibration"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-008 outage?",
+      "claim": "checkout-service-008 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-008-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-008 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-008",
+      "split": "calibration"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-009 outage?",
+      "claim": "checkout-service-009 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-009-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-009 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-009",
+      "split": "sealed"
+    },
+    {
+      "category": "unsupported_number_or_date",
+      "question": "How long was the checkout-service-010 outage?",
+      "claim": "checkout-service-010 experienced a 45-minute outage.",
+      "asserted_citation_ids": [
+        "incident-010-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-timeline",
+          "ordinal": 0,
+          "content": "checkout-service-010 experienced a 12-minute outage starting at 03:14 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "contradicted",
+      "notes": "The cited text gives a specific, different duration -- the claim's number was not derived from this evidence.",
+      "id": "unsupported-number-or-date-010",
+      "split": "sealed"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-001 error rate rise?",
+      "claim": "checkout-service-001's error rate rose because auth-service-001 latency increased.",
+      "asserted_citation_ids": [
+        "incident-001-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-timeline",
+          "ordinal": 0,
+          "content": "auth-service-001 latency rose at 03:10 UTC. checkout-service-001 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-001",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-002 error rate rise?",
+      "claim": "checkout-service-002's error rate rose because auth-service-002 latency increased.",
+      "asserted_citation_ids": [
+        "incident-002-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-timeline",
+          "ordinal": 0,
+          "content": "auth-service-002 latency rose at 03:10 UTC. checkout-service-002 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-002",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-003 error rate rise?",
+      "claim": "checkout-service-003's error rate rose because auth-service-003 latency increased.",
+      "asserted_citation_ids": [
+        "incident-003-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-timeline",
+          "ordinal": 0,
+          "content": "auth-service-003 latency rose at 03:10 UTC. checkout-service-003 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-003",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-004 error rate rise?",
+      "claim": "checkout-service-004's error rate rose because auth-service-004 latency increased.",
+      "asserted_citation_ids": [
+        "incident-004-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-timeline",
+          "ordinal": 0,
+          "content": "auth-service-004 latency rose at 03:10 UTC. checkout-service-004 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-004",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-005 error rate rise?",
+      "claim": "checkout-service-005's error rate rose because auth-service-005 latency increased.",
+      "asserted_citation_ids": [
+        "incident-005-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-timeline",
+          "ordinal": 0,
+          "content": "auth-service-005 latency rose at 03:10 UTC. checkout-service-005 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-005",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-006 error rate rise?",
+      "claim": "checkout-service-006's error rate rose because auth-service-006 latency increased.",
+      "asserted_citation_ids": [
+        "incident-006-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-timeline",
+          "ordinal": 0,
+          "content": "auth-service-006 latency rose at 03:10 UTC. checkout-service-006 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-006",
+      "split": "dev"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-007 error rate rise?",
+      "claim": "checkout-service-007's error rate rose because auth-service-007 latency increased.",
+      "asserted_citation_ids": [
+        "incident-007-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-timeline",
+          "ordinal": 0,
+          "content": "auth-service-007 latency rose at 03:10 UTC. checkout-service-007 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-007",
+      "split": "calibration"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-008 error rate rise?",
+      "claim": "checkout-service-008's error rate rose because auth-service-008 latency increased.",
+      "asserted_citation_ids": [
+        "incident-008-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-timeline",
+          "ordinal": 0,
+          "content": "auth-service-008 latency rose at 03:10 UTC. checkout-service-008 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-008",
+      "split": "calibration"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-009 error rate rise?",
+      "claim": "checkout-service-009's error rate rose because auth-service-009 latency increased.",
+      "asserted_citation_ids": [
+        "incident-009-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-timeline",
+          "ordinal": 0,
+          "content": "auth-service-009 latency rose at 03:10 UTC. checkout-service-009 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-009",
+      "split": "sealed"
+    },
+    {
+      "category": "unsupported_causal_statement",
+      "question": "Why did checkout-service-010 error rate rise?",
+      "claim": "checkout-service-010's error rate rose because auth-service-010 latency increased.",
+      "asserted_citation_ids": [
+        "incident-010-timeline#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-timeline",
+          "ordinal": 0,
+          "content": "auth-service-010 latency rose at 03:10 UTC. checkout-service-010 error rate rose at 03:12 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The evidence establishes temporal sequence, not causation -- a common LLM over-reach the current citation-only check cannot catch at all.",
+      "id": "unsupported-causal-statement-010",
+      "split": "sealed"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-001 depends on?",
+      "claim": "checkout-service-001 depends on auth-service-001, which is owned by Identity Team 001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy#0",
+        "incident-001-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-001 depends on auth-service-001 for session validation."
+        },
+        {
+          "source_id": "incident-001-ownership",
+          "ordinal": 0,
+          "content": "auth-service-001 is owned by Identity Team 001."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-001 depends on auth-service-001 for session validation.",
+        "auth-service-001 is owned by Identity Team 001."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-001",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-002 depends on?",
+      "claim": "checkout-service-002 depends on auth-service-002, which is owned by Identity Team 002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy#0",
+        "incident-002-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-002 depends on auth-service-002 for session validation."
+        },
+        {
+          "source_id": "incident-002-ownership",
+          "ordinal": 0,
+          "content": "auth-service-002 is owned by Identity Team 002."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-002 depends on auth-service-002 for session validation.",
+        "auth-service-002 is owned by Identity Team 002."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-002",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-003 depends on?",
+      "claim": "checkout-service-003 depends on auth-service-003, which is owned by Identity Team 003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy#0",
+        "incident-003-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-003 depends on auth-service-003 for session validation."
+        },
+        {
+          "source_id": "incident-003-ownership",
+          "ordinal": 0,
+          "content": "auth-service-003 is owned by Identity Team 003."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-003 depends on auth-service-003 for session validation.",
+        "auth-service-003 is owned by Identity Team 003."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-003",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-004 depends on?",
+      "claim": "checkout-service-004 depends on auth-service-004, which is owned by Identity Team 004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy#0",
+        "incident-004-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-004 depends on auth-service-004 for session validation."
+        },
+        {
+          "source_id": "incident-004-ownership",
+          "ordinal": 0,
+          "content": "auth-service-004 is owned by Identity Team 004."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-004 depends on auth-service-004 for session validation.",
+        "auth-service-004 is owned by Identity Team 004."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-004",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-005 depends on?",
+      "claim": "checkout-service-005 depends on auth-service-005, which is owned by Identity Team 005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy#0",
+        "incident-005-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-005 depends on auth-service-005 for session validation."
+        },
+        {
+          "source_id": "incident-005-ownership",
+          "ordinal": 0,
+          "content": "auth-service-005 is owned by Identity Team 005."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-005 depends on auth-service-005 for session validation.",
+        "auth-service-005 is owned by Identity Team 005."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-005",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-006 depends on?",
+      "claim": "checkout-service-006 depends on auth-service-006, which is owned by Identity Team 006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy#0",
+        "incident-006-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-006 depends on auth-service-006 for session validation."
+        },
+        {
+          "source_id": "incident-006-ownership",
+          "ordinal": 0,
+          "content": "auth-service-006 is owned by Identity Team 006."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-006 depends on auth-service-006 for session validation.",
+        "auth-service-006 is owned by Identity Team 006."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-006",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-007 depends on?",
+      "claim": "checkout-service-007 depends on auth-service-007, which is owned by Identity Team 007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy#0",
+        "incident-007-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-007 depends on auth-service-007 for session validation."
+        },
+        {
+          "source_id": "incident-007-ownership",
+          "ordinal": 0,
+          "content": "auth-service-007 is owned by Identity Team 007."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-007 depends on auth-service-007 for session validation.",
+        "auth-service-007 is owned by Identity Team 007."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-007",
+      "split": "calibration"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-008 depends on?",
+      "claim": "checkout-service-008 depends on auth-service-008, which is owned by Identity Team 008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy#0",
+        "incident-008-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-008 depends on auth-service-008 for session validation."
+        },
+        {
+          "source_id": "incident-008-ownership",
+          "ordinal": 0,
+          "content": "auth-service-008 is owned by Identity Team 008."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-008 depends on auth-service-008 for session validation.",
+        "auth-service-008 is owned by Identity Team 008."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-008",
+      "split": "calibration"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-009 depends on?",
+      "claim": "checkout-service-009 depends on auth-service-009, which is owned by Identity Team 009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy#0",
+        "incident-009-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-009 depends on auth-service-009 for session validation."
+        },
+        {
+          "source_id": "incident-009-ownership",
+          "ordinal": 0,
+          "content": "auth-service-009 is owned by Identity Team 009."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-009 depends on auth-service-009 for session validation.",
+        "auth-service-009 is owned by Identity Team 009."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-009",
+      "split": "sealed"
+    },
+    {
+      "category": "multi_source_supported_claim",
+      "question": "Which team owns the service checkout-service-010 depends on?",
+      "claim": "checkout-service-010 depends on auth-service-010, which is owned by Identity Team 010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy#0",
+        "incident-010-ownership#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-010 depends on auth-service-010 for session validation."
+        },
+        {
+          "source_id": "incident-010-ownership",
+          "ordinal": 0,
+          "content": "auth-service-010 is owned by Identity Team 010."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-010 depends on auth-service-010 for session validation.",
+        "auth-service-010 is owned by Identity Team 010."
+      ],
+      "label": "supported",
+      "notes": "Each half of the compound claim is entailed by a different, correctly-cited source.",
+      "id": "multi-source-supported-claim-010",
+      "split": "sealed"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-001 depends on?",
+      "claim": "checkout-service-001 depends on auth-service-001, which is owned by Identity Team 001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy#0",
+        "incident-001-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-001 depends on auth-service-001 for session validation."
+        },
+        {
+          "source_id": "incident-001-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-001 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-001 depends on auth-service-001 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-001",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-002 depends on?",
+      "claim": "checkout-service-002 depends on auth-service-002, which is owned by Identity Team 002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy#0",
+        "incident-002-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-002 depends on auth-service-002 for session validation."
+        },
+        {
+          "source_id": "incident-002-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-002 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-002 depends on auth-service-002 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-002",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-003 depends on?",
+      "claim": "checkout-service-003 depends on auth-service-003, which is owned by Identity Team 003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy#0",
+        "incident-003-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-003 depends on auth-service-003 for session validation."
+        },
+        {
+          "source_id": "incident-003-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-003 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-003 depends on auth-service-003 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-003",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-004 depends on?",
+      "claim": "checkout-service-004 depends on auth-service-004, which is owned by Identity Team 004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy#0",
+        "incident-004-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-004 depends on auth-service-004 for session validation."
+        },
+        {
+          "source_id": "incident-004-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-004 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-004 depends on auth-service-004 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-004",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-005 depends on?",
+      "claim": "checkout-service-005 depends on auth-service-005, which is owned by Identity Team 005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy#0",
+        "incident-005-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-005 depends on auth-service-005 for session validation."
+        },
+        {
+          "source_id": "incident-005-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-005 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-005 depends on auth-service-005 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-005",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-006 depends on?",
+      "claim": "checkout-service-006 depends on auth-service-006, which is owned by Identity Team 006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy#0",
+        "incident-006-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-006 depends on auth-service-006 for session validation."
+        },
+        {
+          "source_id": "incident-006-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-006 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-006 depends on auth-service-006 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-006",
+      "split": "dev"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-007 depends on?",
+      "claim": "checkout-service-007 depends on auth-service-007, which is owned by Identity Team 007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy#0",
+        "incident-007-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-007 depends on auth-service-007 for session validation."
+        },
+        {
+          "source_id": "incident-007-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-007 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-007 depends on auth-service-007 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-007",
+      "split": "calibration"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-008 depends on?",
+      "claim": "checkout-service-008 depends on auth-service-008, which is owned by Identity Team 008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy#0",
+        "incident-008-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-008 depends on auth-service-008 for session validation."
+        },
+        {
+          "source_id": "incident-008-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-008 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-008 depends on auth-service-008 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-008",
+      "split": "calibration"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-009 depends on?",
+      "claim": "checkout-service-009 depends on auth-service-009, which is owned by Identity Team 009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy#0",
+        "incident-009-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-009 depends on auth-service-009 for session validation."
+        },
+        {
+          "source_id": "incident-009-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-009 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-009 depends on auth-service-009 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-009",
+      "split": "sealed"
+    },
+    {
+      "category": "multi_source_partially_supported_claim",
+      "question": "Which team owns the service checkout-service-010 depends on?",
+      "claim": "checkout-service-010 depends on auth-service-010, which is owned by Identity Team 010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy#0",
+        "incident-010-oncall#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-010 depends on auth-service-010 for session validation."
+        },
+        {
+          "source_id": "incident-010-oncall",
+          "ordinal": 0,
+          "content": "The on-call rotation for auth-service-010 changes every Monday at 09:00 UTC."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout-service-010 depends on auth-service-010 for session validation."
+      ],
+      "label": "insufficient",
+      "notes": "Only the dependency half is supported; the ownership half's citation is valid but doesn't mention ownership at all -- the compound claim as a whole is not fully entailed.",
+      "id": "multi-source-partially-supported-claim-010",
+      "split": "sealed"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-001 depend on identity-db-001?",
+      "claim": "checkout-service-001 depends on identity-db-001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy#0",
+        "incident-001-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-001 depends on auth-service-001 for session validation."
+        },
+        {
+          "source_id": "incident-001-topology",
+          "ordinal": 0,
+          "content": "auth-service-001 depends on identity-db-001 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-001",
+      "split": "dev"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-002 depend on identity-db-002?",
+      "claim": "checkout-service-002 depends on identity-db-002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy#0",
+        "incident-002-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-002 depends on auth-service-002 for session validation."
+        },
+        {
+          "source_id": "incident-002-topology",
+          "ordinal": 0,
+          "content": "auth-service-002 depends on identity-db-002 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-002",
+      "split": "dev"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-003 depend on identity-db-003?",
+      "claim": "checkout-service-003 depends on identity-db-003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy#0",
+        "incident-003-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-003 depends on auth-service-003 for session validation."
+        },
+        {
+          "source_id": "incident-003-topology",
+          "ordinal": 0,
+          "content": "auth-service-003 depends on identity-db-003 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-003",
+      "split": "dev"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-004 depend on identity-db-004?",
+      "claim": "checkout-service-004 depends on identity-db-004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy#0",
+        "incident-004-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-004 depends on auth-service-004 for session validation."
+        },
+        {
+          "source_id": "incident-004-topology",
+          "ordinal": 0,
+          "content": "auth-service-004 depends on identity-db-004 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-004",
+      "split": "dev"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-005 depend on identity-db-005?",
+      "claim": "checkout-service-005 depends on identity-db-005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy#0",
+        "incident-005-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-005 depends on auth-service-005 for session validation."
+        },
+        {
+          "source_id": "incident-005-topology",
+          "ordinal": 0,
+          "content": "auth-service-005 depends on identity-db-005 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-005",
+      "split": "dev"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-006 depend on identity-db-006?",
+      "claim": "checkout-service-006 depends on identity-db-006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy#0",
+        "incident-006-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-006 depends on auth-service-006 for session validation."
+        },
+        {
+          "source_id": "incident-006-topology",
+          "ordinal": 0,
+          "content": "auth-service-006 depends on identity-db-006 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-006",
+      "split": "dev"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-007 depend on identity-db-007?",
+      "claim": "checkout-service-007 depends on identity-db-007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy#0",
+        "incident-007-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-007 depends on auth-service-007 for session validation."
+        },
+        {
+          "source_id": "incident-007-topology",
+          "ordinal": 0,
+          "content": "auth-service-007 depends on identity-db-007 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-007",
+      "split": "calibration"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-008 depend on identity-db-008?",
+      "claim": "checkout-service-008 depends on identity-db-008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy#0",
+        "incident-008-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-008 depends on auth-service-008 for session validation."
+        },
+        {
+          "source_id": "incident-008-topology",
+          "ordinal": 0,
+          "content": "auth-service-008 depends on identity-db-008 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-008",
+      "split": "calibration"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-009 depend on identity-db-009?",
+      "claim": "checkout-service-009 depends on identity-db-009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy#0",
+        "incident-009-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-009 depends on auth-service-009 for session validation."
+        },
+        {
+          "source_id": "incident-009-topology",
+          "ordinal": 0,
+          "content": "auth-service-009 depends on identity-db-009 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-009",
+      "split": "sealed"
+    },
+    {
+      "category": "evidence_requiring_two_hops",
+      "question": "Does checkout-service-010 depend on identity-db-010?",
+      "claim": "checkout-service-010 depends on identity-db-010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy#0",
+        "incident-010-topology#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy",
+          "ordinal": 0,
+          "content": "checkout-service-010 depends on auth-service-010 for session validation."
+        },
+        {
+          "source_id": "incident-010-topology",
+          "ordinal": 0,
+          "content": "auth-service-010 depends on identity-db-010 for credential storage."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Both hops are individually true, but neither cited passage states the transitive relationship directly -- text entailment should not accept an unstated inference, even one a graph traversal would confirm structurally.",
+      "id": "evidence-requiring-two-hops-010",
+      "split": "sealed"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-001 depends on auth-service-001 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-001",
+      "split": "dev"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-002 depends on auth-service-002 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-002",
+      "split": "dev"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-003 depends on auth-service-003 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-003",
+      "split": "dev"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-004 depends on auth-service-004 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-004",
+      "split": "dev"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-005 depends on auth-service-005 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-005",
+      "split": "dev"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-006 depends on auth-service-006 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-006",
+      "split": "dev"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-007 depends on auth-service-007 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-007",
+      "split": "calibration"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-008 depends on auth-service-008 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-008",
+      "split": "calibration"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-009 depends on auth-service-009 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-009",
+      "split": "sealed"
+    },
+    {
+      "category": "superseded_document_evidence",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy-v1#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy-v2",
+          "ordinal": 0,
+          "content": "checkout-service-010 depends on auth-service-010 for session validation (revision 2)."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The citation references a document revision that a newer publication has replaced, so it's absent from what was actually retrieved -- the same shape as citing a chunk id that was deleted by a concurrent update.",
+      "id": "superseded-document-evidence-010",
+      "split": "sealed"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-001 calls out to several internal services, including auth-service-001, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-001",
+      "split": "dev"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-002 calls out to several internal services, including auth-service-002, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-002",
+      "split": "dev"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-003 calls out to several internal services, including auth-service-003, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-003",
+      "split": "dev"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-004 calls out to several internal services, including auth-service-004, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-004",
+      "split": "dev"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-005 calls out to several internal services, including auth-service-005, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-005",
+      "split": "dev"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-006 calls out to several internal services, including auth-service-006, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-006",
+      "split": "dev"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-007 calls out to several internal services, including auth-service-007, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-007",
+      "split": "calibration"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-008 calls out to several internal services, including auth-service-008, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-008",
+      "split": "calibration"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-009 calls out to several internal services, including auth-service-009, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-009",
+      "split": "sealed"
+    },
+    {
+      "category": "pending_or_partial_extraction",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-postmortem#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-postmortem",
+          "ordinal": 0,
+          "content": "During the incident, engineers noted that checkout-service-010 calls out to several internal services, including auth-service-010, while diagnosing the root cause."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "The chunk is text-searchable (extraction hasn't produced a confirmed graph relationship for it yet, or only partially), and the prose alone only mentions the services in passing without asserting an actual dependency.",
+      "id": "pending-or-partial-extraction-010",
+      "split": "sealed"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-001",
+      "split": "dev"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-002",
+      "split": "dev"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-003",
+      "split": "dev"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-004",
+      "split": "dev"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-005",
+      "split": "dev"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-006",
+      "split": "dev"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-007",
+      "split": "calibration"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-008",
+      "split": "calibration"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-009",
+      "split": "sealed"
+    },
+    {
+      "category": "correct_abstention",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "Insufficient evidence to answer from the indexed sources.",
+      "asserted_citation_ids": [],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-billing",
+          "ordinal": 0,
+          "content": "The billing reconciliation job runs nightly at 02:00 UTC."
+        }
+      ],
+      "supporting_quotes": [],
+      "label": "insufficient",
+      "notes": "Nothing retrieved addresses the question; abstaining (no citations, no claim of a relationship) is the correct behavior, and the current citation-only check already handles this correctly (bool([]) is False).",
+      "id": "correct-abstention-010",
+      "split": "sealed"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-001 depend on?",
+      "claim": "checkout-service-001 depends on auth-service-001.",
+      "asserted_citation_ids": [
+        "incident-001-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-001-deploy",
+          "ordinal": 0,
+          "content": "checkout service 001 depends on auth service 001 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 001 depends on auth service 001 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-001",
+      "split": "dev"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-002 depend on?",
+      "claim": "checkout-service-002 depends on auth-service-002.",
+      "asserted_citation_ids": [
+        "incident-002-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-002-deploy",
+          "ordinal": 0,
+          "content": "checkout service 002 depends on auth service 002 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 002 depends on auth service 002 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-002",
+      "split": "dev"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-003 depend on?",
+      "claim": "checkout-service-003 depends on auth-service-003.",
+      "asserted_citation_ids": [
+        "incident-003-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-003-deploy",
+          "ordinal": 0,
+          "content": "checkout service 003 depends on auth service 003 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 003 depends on auth service 003 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-003",
+      "split": "dev"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-004 depend on?",
+      "claim": "checkout-service-004 depends on auth-service-004.",
+      "asserted_citation_ids": [
+        "incident-004-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-004-deploy",
+          "ordinal": 0,
+          "content": "checkout service 004 depends on auth service 004 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 004 depends on auth service 004 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-004",
+      "split": "dev"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-005 depend on?",
+      "claim": "checkout-service-005 depends on auth-service-005.",
+      "asserted_citation_ids": [
+        "incident-005-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-005-deploy",
+          "ordinal": 0,
+          "content": "checkout service 005 depends on auth service 005 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 005 depends on auth service 005 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-005",
+      "split": "dev"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-006 depend on?",
+      "claim": "checkout-service-006 depends on auth-service-006.",
+      "asserted_citation_ids": [
+        "incident-006-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-006-deploy",
+          "ordinal": 0,
+          "content": "checkout service 006 depends on auth service 006 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 006 depends on auth service 006 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-006",
+      "split": "dev"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-007 depend on?",
+      "claim": "checkout-service-007 depends on auth-service-007.",
+      "asserted_citation_ids": [
+        "incident-007-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-007-deploy",
+          "ordinal": 0,
+          "content": "checkout service 007 depends on auth service 007 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 007 depends on auth service 007 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-007",
+      "split": "calibration"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-008 depend on?",
+      "claim": "checkout-service-008 depends on auth-service-008.",
+      "asserted_citation_ids": [
+        "incident-008-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-008-deploy",
+          "ordinal": 0,
+          "content": "checkout service 008 depends on auth service 008 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 008 depends on auth service 008 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-008",
+      "split": "calibration"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-009 depend on?",
+      "claim": "checkout-service-009 depends on auth-service-009.",
+      "asserted_citation_ids": [
+        "incident-009-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-009-deploy",
+          "ordinal": 0,
+          "content": "checkout service 009 depends on auth service 009 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 009 depends on auth service 009 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-009",
+      "split": "sealed"
+    },
+    {
+      "category": "incorrect_abstention_pressure",
+      "question": "What does checkout-service-010 depend on?",
+      "claim": "checkout-service-010 depends on auth-service-010.",
+      "asserted_citation_ids": [
+        "incident-010-deploy#0"
+      ],
+      "retrieved_evidence": [
+        {
+          "source_id": "incident-010-deploy",
+          "ordinal": 0,
+          "content": "checkout service 010 depends on auth service 010 for session validation."
+        }
+      ],
+      "supporting_quotes": [
+        "checkout service 010 depends on auth service 010 for session validation."
+      ],
+      "label": "supported",
+      "notes": "The evidence genuinely supports the claim; only the surface formatting (hyphens vs. spaces) differs from the question. A verifier under pressure to be conservative must not abstain here just because of superficial phrasing.",
+      "id": "incorrect-abstention-pressure-010",
+      "split": "sealed"
+    }
+  ]
+}

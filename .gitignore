@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+sandbox/**/*.py
+.venv
+*.egg-info/
+.pytest_cache/
+.DS_Store
+__pycache__/
+*.pyc
+benchmarks/__pycache__/
+.firecrawl/
+.ruff_cache/
+dist/
+build/
+benchmarks/grounding/packets/
