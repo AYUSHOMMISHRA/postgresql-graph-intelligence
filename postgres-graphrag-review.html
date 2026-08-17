@@ -92,6 +92,8 @@
   th, td { text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
   thead th { font-family: var(--font-sans); font-size: .7rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; background: var(--surface-2); }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+  td.why { max-width: 320px; color: var(--ink-soft); font-size: .86em; }
+  td.table-principle { background: var(--accent-soft); font-size: .9em; line-height: 1.5; padding: .9rem 1rem; border-bottom: none; }
   tbody tr:last-child td { border-bottom: none; }
   caption.tbl-cap { caption-side: bottom; text-align: left; padding: .5rem .8rem 0; font-size: .78rem; color: var(--ink-faint); }
 
@@ -123,7 +125,7 @@
   <p class="dek">What <code>postgres-graph-rag</code> solves, how AI is used, what was actually measured, and how to run it. Every claim below was checked against the current source code and re-run against a real local PostgreSQL instance and a real Gemini key.</p>
   <div class="meta-strip">
     <span><strong>Version</strong> 0.2.0</span>
-    <span><strong>Tests</strong> 366 passed / 4 deselected</span>
+    <span><strong>Tests</strong> 375 passed / 4 deselected</span>
     <span><strong>Lint / types</strong> Ruff and mypy clean</span>
   </div>
 </header>
@@ -177,16 +179,23 @@
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Step</th><th>How</th><th></th></tr></thead>
+          <thead><tr><th>Step</th><th>How</th><th></th><th>Why</th></tr></thead>
           <tbody>
-            <tr><td>Chunk &amp; embed</td><td>Splitter + provider embedding call</td><td><span class="chip chip-tested">AI</span></td></tr>
-            <tr><td>Extract facts (triplets)</td><td>Structured-output LLM call</td><td><span class="chip chip-tested">AI</span></td></tr>
-            <tr><td>Resolve entities</td><td><code>pg_trgm</code> candidates confirmed by embedding similarity</td><td>SQL + <span class="chip chip-tested">AI confirms</span></td></tr>
-            <tr><td>Fuse retrieval</td><td>Reciprocal Rank Fusion, Postgres full-text + vector</td><td>SQL</td></tr>
-            <tr><td>Traverse the graph</td><td>Recursive CTE, hop-decay &times; edge-weight scoring</td><td>SQL</td></tr>
-            <tr><td>Check citations</td><td>Existence &rarr; entity match &rarr; quote/number match, then a model call only if still undecided</td><td>SQL, then <span class="chip chip-tested">AI</span></td></tr>
-            <tr><td>Compose the answer</td><td>LLM writes the cited answer text</td><td><span class="chip chip-tested">AI</span></td></tr>
+            <tr><td>Chunk &amp; embed</td><td>Deterministic splitter, then one batched provider embedding call</td><td><span class="chip chip-tested">AI</span></td><td class="why">Splitting text into fixed-size pieces needs no understanding. Turning each piece into a vector that captures its <em>meaning</em> does &mdash; no SQL query can tell "auth service" and "authentication service" are related.</td></tr>
+            <tr><td>Extract facts (triplets)</td><td>Structured-output LLM call</td><td><span class="chip chip-tested">AI</span></td><td class="why">Turning a sentence into subject&ndash;predicate&ndash;object facts requires parsing grammar and reference &mdash; there's no deterministic way to do this on free text.</td></tr>
+            <tr><td>Resolve entities</td><td>New entity names embedded, then matched against <code>pg_trgm</code> candidates by embedding similarity</td><td><span class="chip chip-tested">AI</span>, then SQL</td><td class="why">AI runs first because there's nothing to compare until a fresh vector exists. Once it does, comparing vectors (cosine distance) and spellings (trigram overlap) is arithmetic &mdash; cheap, deterministic, and doesn't need a new model call per comparison.</td></tr>
+            <tr><td>Embed the question</td><td>One provider embedding call per retrieval &mdash; timed separately in the code, easy to miss</td><td><span class="chip chip-tested">AI</span></td><td class="why">Same reason as chunking: a question has no vector until a model produces one.</td></tr>
+            <tr><td>Fuse retrieval</td><td>Reciprocal Rank Fusion, Postgres full-text + vector, using that embedding</td><td>SQL</td><td class="why">Once a lexical rank and a semantic rank both exist, combining them into one score is arithmetic on numbers already computed &mdash; no further judgment needed.</td></tr>
+            <tr><td>Traverse the graph</td><td>Recursive CTE, hop-decay &times; edge-weight scoring</td><td>SQL</td><td class="why">The facts are already extracted and stored as edges; walking them by hop distance and weight is graph math on existing data, not new interpretation.</td></tr>
+            <tr><td>Check citations (default mode)</td><td>Citation marker names a chunk that was actually retrieved &mdash; nothing more</td><td>SQL</td><td class="why">"Is this id in the set of retrieved ids?" is exact set membership &mdash; a model adds nothing a lookup can't already answer.</td></tr>
+            <tr><td>Check citations (opt-in stricter mode)</td><td>Entity/quote/number checks per claim, then a model call only for claims still undecided</td><td>SQL, then <span class="chip chip-tested">AI</span></td><td class="why">SQL runs first because most claims resolve for free via exact/near-exact matching. Only a claim that survives all of those checks still undecided genuinely needs judgment, so the model is paid for only on that shrinking remainder &mdash; cost proportional to real ambiguity, not a flat cost per claim.</td></tr>
+            <tr><td>Compose the answer</td><td>LLM writes the cited answer text</td><td><span class="chip chip-tested">AI</span></td><td class="why">Producing one fluent, correctly-cited sentence from a set of facts is language generation &mdash; inherently a model's job, not a database's.</td></tr>
           </tbody>
+          <tfoot>
+            <tr><td colspan="4" class="table-principle">
+              <strong>The governing principle, not nine unrelated choices:</strong> use AI only where interpretation or generation is actually required, and use SQL/deterministic logic everywhere else. Extraction has to turn "Alice works at BotGauge" into a structured fact (<code>Alice &mdash;[works_at]&rarr; BotGauge</code>) &mdash; that interpretation needs an LLM. Fusing retrieval is combining two ranks that already exist into one score by arithmetic &mdash; SQL is sufficient, and a model call there would be pure waste. <strong>AI handles semantic understanding and language generation; SQL handles deterministic retrieval, ranking, validation, and graph computation</strong> &mdash; reducing LLM cost, latency, and nondeterminism, and cutting unnecessary model calls, while keeping real language understanding on the model.
+            </td></tr>
+          </tfoot>
         </table>
       </div>
 
@@ -252,6 +261,8 @@
       <p>Citation trust has two tiers. By default, a citation is accepted if it names a chunk that was actually retrieved &mdash; it does not check that the cited text supports the claim. An optional, stricter mode splits the answer into individual claims and runs each through citation, quote, number, and negation checks purely in Python; only claims still undecided after those checks are sent to a model, and every claim in one undecided batch goes in a single call, not one call per claim.</p>
       <p><strong>Why AI is necessary here:</strong> no deterministic method can read "auth-service is owned_by Identity Team" and recognize it as a fact worth linking &mdash; that step requires language understanding. But once the fact is a graph edge, walking it is a solved SQL problem; re-invoking a model at every hop, as some GraphRAG designs do, would pay repeatedly for something a recursive query already does deterministically. This design pays for a model exactly once per extracted fact, once per composed answer, and, in the stricter grounding mode, once more only for claims cheap checks can't resolve on their own.</p>
       <p><strong>Final result:</strong> a question whose answer spans multiple documents gets a single, cited answer &mdash; or an explicit refusal to answer, never a guess dressed up as one.</p>
+      <p><strong>One more place AI is used, outside this per-question path:</strong> community detection (grouping densely-connected entities) is deterministic SQL, but summarizing what a community <em>means</em> in a sentence is not &mdash; that one summary per community is a separate, on-demand model call (<code>generate_text()</code>, the same method that composes answers), reused rather than re-run for a community whose evidence hasn't changed.</p>
+      <p><strong>Four provider options, one code path:</strong> offline (deterministic, zero cost, no network), OpenAI, Gemini, and now a LiteLLM Gateway &mdash; for routing to a self-hosted or alternative model (Ollama, Azure, Bedrock, a proxy) without a separate integration. Checked directly against the source: LiteLLM support adds no new SDK or dependency. It reuses the existing OpenAI client, pointed at the gateway's <code>base_url</code> with the gateway's API key, tagged with an explicit <code>api_family: "openai"</code> so dispatch doesn't have to guess the provider from the model name. Because a gateway can front a model of any embedding size, the operator must supply that dimension explicitly (<code>LITELLM_EMBEDDING_DIMENSION</code>); the same schema-dimension preflight check that protects OpenAI/Gemini/offline enforces it before any call.</p>
 
       <h3>Two ways to try it without writing code</h3>
       <p>A <strong>CLI Playground</strong> (<code>postgres-graph-rag-demo playground</code>) and a <strong>browser Demo Studio</strong> (<code>postgres-graph-rag-studio</code>) both let anyone submit their own text and question to the real engine, in an isolated tenant, without touching the bundled scenario. Both call the same shared service module, so neither re-implements ingestion, retrieval, or cleanup on its own &mdash; see <a href="#docs">Reusable Documentation</a> for commands.</p>
@@ -312,6 +323,7 @@
             <tr><td>Scale</td><td>Retrieval quality has only been benchmarked up to 60 documents; behavior at larger per-tenant graph sizes is not validated in this repository.</td></tr>
             <tr><td>Grounding recall</td><td>The deterministic verifier layer conservatively drops a third of genuinely correct claims (see <a href="#impact">Measurable Impact</a>). A model-based layer meant to recover that recall is built and unit-tested, but has no live-provider benchmark run recorded.</td></tr>
             <tr><td>Browser Studio security</td><td>Binds to loopback only by default, has no authentication, and is not intended for hosted or multi-user use.</td></tr>
+            <tr><td>LiteLLM Gateway path</td><td>Config validation, dimension checks, and dispatch-to-OpenAI-protocol are covered by unit tests (9 passing), but no run in this review reached a real LiteLLM gateway &mdash; no gateway was available in this environment. Treat it as implemented and unit-verified, not yet end-to-end verified.</td></tr>
             <tr><td>Not measured</td><td>Cost per document or query, and the model-abstention rate across a larger sample than the two real attempts above.</td></tr>
           </tbody>
         </table>
