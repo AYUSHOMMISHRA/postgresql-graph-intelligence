@@ -1,10 +1,7 @@
 import hashlib
-import logging
 import math
 import re
 from typing import List, Any
-
-logger = logging.getLogger("postgres_graph_rag")
 
 _WHITESPACE_RE = re.compile(r"\s+")
 

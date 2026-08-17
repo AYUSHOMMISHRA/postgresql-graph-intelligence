@@ -781,7 +781,7 @@ async def test_summarize_communities_reuses_cache_and_query_global(store):
     await engine.refresh_communities(tenant, "ns")
 
     extractor = AsyncMock()
-    extractor.config = {"extraction_model": "gpt-5-nano-2025-08-07"}
+    extractor.config = {"extraction_model": "gpt-5.6-luna"}
     extractor.generate_text = AsyncMock(return_value="Marie and Pierre Curie researched radioactivity together.")
 
     summaries = await engine.summarize_communities(tenant, "ns", extractor)
@@ -2188,7 +2188,7 @@ async def test_extractor_last_usage_is_concurrency_safe():
     def make_completion(n):
         usage = MagicMock(prompt_tokens=n * 10, completion_tokens=n, total_tokens=n * 10 + n)
         parsed = ExtractionResult(triplets=[Triplet(subject=f"S{n}", predicate="p", object=f"O{n}")])
-        return MagicMock(usage=usage, choices=[MagicMock(message=MagicMock(parsed=parsed))])
+        return MagicMock(usage=usage, choices=[MagicMock(message=MagicMock(parsed=parsed, refusal=None))])
 
     call_n = {"i": 0}
 
@@ -2223,7 +2223,7 @@ async def test_ingestion_and_retrieval_report_real_token_counts(store):
     async def fake_parse(*args, **kwargs):
         usage = MagicMock(prompt_tokens=100, completion_tokens=20, total_tokens=120)
         parsed = ExtractionResult(triplets=[Triplet(subject="Apple", predicate="released", object="M4")])
-        return MagicMock(usage=usage, choices=[MagicMock(message=MagicMock(parsed=parsed))])
+        return MagicMock(usage=usage, choices=[MagicMock(message=MagicMock(parsed=parsed, refusal=None))])
 
     rag.extractor.openai_client = MagicMock()
     rag.extractor.openai_client.beta.chat.completions.parse = fake_parse

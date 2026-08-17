@@ -17,6 +17,11 @@ Requires a real provider to produce a live result:
     GOOGLE_API_KEY=... python -m benchmarks.grounding.model_verifier_runner \\
         --provider google --split dev
 
+    LITELLM_API_KEY=... LITELLM_BASE_URL=... LITELLM_CHAT_MODEL=... \\
+        LITELLM_EMBEDDING_MODEL=... LITELLM_EMBEDDING_DIMENSION=... \\
+        python -m benchmarks.grounding.model_verifier_runner \\
+        --provider litellm --split dev
+
 Three things can be exercised right now, without any real API key or
 network call, and are covered by tests/test_model_verifier_runner.py:
 
@@ -122,6 +127,15 @@ def build_real_extractor(provider: str) -> LLMExtractor:
         if not api_key:
             raise SystemExit("--provider google requires GOOGLE_API_KEY to be set")
         return LLMExtractor(config=dict(GOOGLE_DEFAULT_CONFIG), google_api_key=api_key)
+    if provider == "litellm":
+        from postgres_graph_rag.playground_service import (
+            build_extractor,
+            litellm_kwargs_from_env,
+        )
+
+        extractor = build_extractor("litellm", **litellm_kwargs_from_env())
+        assert isinstance(extractor, LLMExtractor)
+        return extractor
     raise ValueError(f"unknown provider {provider!r}")
 
 
@@ -589,7 +603,7 @@ async def main_async(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--split", default="sealed", choices=["dev", "calibration", "sealed", "all"])
-    parser.add_argument("--provider", default="openai", choices=["openai", "google"])
+    parser.add_argument("--provider", default="openai", choices=["openai", "google", "litellm"])
     parser.add_argument("--simulate-failure", action="store_true",
                          help="Use an always-failing extractor instead of a real provider -- "
                               "measures verifier_failure_safely_represented_rate without credentials.")

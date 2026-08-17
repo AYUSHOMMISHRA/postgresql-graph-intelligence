@@ -40,7 +40,7 @@ This library is built for **Postgres Maximalists**. It leverages the engine you 
 
 ## Core Philosophy
 - **Infrastructure:** Postgres is the only database (via `pgvector` + `pg_trgm`).
-- **Intelligence:** Hosted LLMs (OpenAI or Gemini) for extraction. Freely configurable through `postgres_graph_rag/models.py`.
+- **Intelligence:** Hosted LLMs through OpenAI, Gemini, or an OpenAI-compatible LiteLLM Gateway.
 - **Simplicity:** Native Async Python + SQL.
 - **Scalability:** High-performance connection pooling, bulk single-round-trip writes, and namespace-aware design. Postgres Row-Level Security-enforced multi-tenancy (`for_tenant()`, see [Multi-Tenancy & Security](#multi-tenancy--security)) is the only engine; `namespace` is a partition *within* a tenant, not a substitute for one.
 
@@ -140,7 +140,7 @@ You can control exactly which models are used for extraction and embeddings.
 from postgres_graph_rag.models import ProviderConfig
 
 custom_config: ProviderConfig = {
-    "extraction_model": "gpt-5-nano-2025-08-07",
+    "extraction_model": "gpt-5.6-luna",
     "embedding_model": "text-embedding-3-large",
     "dimension": 3072 # Must match the model's output
 }
@@ -357,6 +357,177 @@ uv run postgres-graph-rag-demo --runtime-url "$PGR_RUNTIME_URL" query \
 ```
 
 Retrieval modes are explicit: `vector` is the lexical/vector baseline, `hybrid` fuses Postgres full-text and vector ranks, and `hybrid_graph` additionally performs bounded multi-hop traversal. `OfflineExtractor` is exported for local fixtures; production deployments can inject the existing OpenAI/Gemini extractor instead. The migration is forward-compatible and adds evidence support counts/manual weights without dropping existing data.
+
+### Try your own text: CLI Playground vs. Browser Demo Studio
+
+Two interfaces let you try your own document text and question against the real,
+RLS-secured engine — both call the same shared logic
+(`postgres_graph_rag.playground_service`; neither re-implements ingestion, retrieval,
+answering, or cleanup) and both use a fresh, isolated tenant/namespace, never the bundled
+scenario's fixed tenant/namespace, and never call `setup`/`reset`.
+
+| | CLI Playground | Browser Demo Studio |
+|---|---|---|
+| Run with | `postgres-graph-rag-demo playground` | `postgres-graph-rag-studio` |
+| Best for | Scripting, automation, CI smoke checks, a quick one-shot check | Pasting/uploading a few documents and visually comparing retrieval modes for a live demo (e.g. to a CTO) |
+| Provider | Chosen per invocation (`--provider`) | Fixed once, for the whole process (`--provider`) — every session in that process uses it |
+| Output | Plain text or `--json` | An HTML page in your browser |
+| Extra install | None — part of the base package | `uv sync --extra studio` |
+
+Use the CLI when you want something scriptable or reproducible; use the Studio when you
+want an interactive page with paste/upload, visible evidence, and a mode comparison view.
+
+#### CLI Playground
+
+```bash
+# Offline, zero cost: only recognizes "Capitalized Phrase <predicate> Capitalized Phrase"
+# (predicates: depends_on, owned_by, caused, deployed, uses, runs_on, has_runbook) --
+# note this requires capitalized entity names, so realistic lowercase service names like
+# "checkout-service depends_on auth-service" will NOT match; capitalize them
+# ("Checkout-Service depends_on Auth-Service") or pass --triplets-json instead.
+uv run postgres-graph-rag-demo --runtime-url "$PGR_RUNTIME_URL" playground \
+  --text "Checkout depends_on Auth." "What does Checkout depend on?"
+
+# Real extraction from ordinary prose, at real provider cost.
+uv run postgres-graph-rag-demo --runtime-url "$PGR_RUNTIME_URL" playground \
+  --provider gemini --text "The billing service depends on the ledger service." \
+  "What does the billing service depend on?"
+
+# Delete this invocation's own document afterward (off by default -- otherwise it's
+# left in place indefinitely under its own random tenant/namespace).
+uv run postgres-graph-rag-demo --runtime-url "$PGR_RUNTIME_URL" playground --cleanup \
+  --text "Checkout depends_on Auth." "What does Checkout depend on?"
+```
+
+`--provider offline` never synthesizes a natural-language answer (it shows retrieved
+passages, related entities, and traversal-selected relationships instead) — `OfflineExtractor`'s
+`generate_text()` is a deterministic fixture stub, not a real model. Use
+`--provider openai`, `--provider gemini`, or `--provider litellm` for a composed, cited answer.
+
+**Embedding dimension must match your schema.** `setup` provisions the schema at
+whichever provider's dimension you choose:
+
+```bash
+uv run postgres-graph-rag-demo --admin-url "$POSTGRES_URL" setup --provider offline  # 1536-dim (default)
+uv run postgres-graph-rag-demo --admin-url "$POSTGRES_URL" setup --provider openai   # 1536-dim
+uv run postgres-graph-rag-demo --admin-url "$POSTGRES_URL" setup --provider gemini   # 3072-dim
+# LiteLLM uses LITELLM_EMBEDDING_DIMENSION; it is gateway/model-specific.
+uv run postgres-graph-rag-demo --admin-url "$POSTGRES_URL" setup --provider litellm
+```
+
+`setup` never makes a paid API call regardless of `--provider` — it only reads that
+provider's declared embedding dimension. Offline and OpenAI are both 1536-dimensional but
+occupy **unrelated embedding spaces**; matching dimensions does not mean compatible
+embeddings. Ingesting with a mismatched provider fails fast, before any extraction or
+embedding call, with a clear message naming the schema's actual dimension.
+
+#### LiteLLM Gateway
+
+LiteLLM is used through its OpenAI-compatible proxy API; no `litellm` Python
+dependency is needed in this project. Configure the gateway rather than an
+upstream provider key:
+
+```bash
+export LITELLM_API_KEY="<your virtual LiteLLM key>"
+export LITELLM_BASE_URL="https://your-litellm-gateway.example/v1"
+export LITELLM_CHAT_MODEL="gpt-5.6-luna"        # model alias configured in the gateway
+export LITELLM_EMBEDDING_MODEL="text-embedding-3-small"
+export LITELLM_EMBEDDING_DIMENSION="1536"       # actual output size of that embedding alias
+
+# Use a dedicated database because its vector dimension is fixed at setup.
+uv run postgres-graph-rag-demo --admin-url "$POSTGRES_URL" setup --provider litellm
+uv run postgres-graph-rag-studio --runtime-url "$PGR_RUNTIME_URL" --provider litellm
+```
+
+The chat alias must support structured JSON-schema output, and the embedding
+alias must expose the gateway's `/embeddings` endpoint. `LITELLM_BASE_URL` is
+the OpenAI-compatible base URL—not a specific `/chat/completions` or
+`/embeddings` endpoint. A key alone is insufficient because each LiteLLM
+deployment chooses its own URL, aliases, and embedding dimension.
+
+Library users can configure the same gateway explicitly:
+
+```python
+import os
+
+from postgres_graph_rag import PostgresGraphRAG, build_litellm_config
+
+config = build_litellm_config(
+    extraction_model="gpt-5.6-luna",
+    embedding_model="text-embedding-3-small",
+    dimension=1536,
+)
+rag = PostgresGraphRAG(
+    runtime_url=os.environ["PGR_RUNTIME_URL"],
+    config=config,
+    openai_api_key=os.environ["LITELLM_API_KEY"],
+    openai_base_url=os.environ["LITELLM_BASE_URL"],
+)
+```
+
+#### Browser Demo Studio
+
+```bash
+uv sync --extra studio   # installs fastapi/uvicorn/jinja2/python-multipart/httpx
+
+# Dedicated database for the Studio, kept separate from the bundled demo/your app schema.
+createdb graph_rag_studio
+uv run postgres-graph-rag-demo --admin-url "postgresql://postgres:postgres@localhost:5432/graph_rag_studio" \
+  setup --provider gemini
+
+# Launch, fixed to one provider for this process (loopback-only by default):
+export PGR_RUNTIME_URL="postgresql://pgr_demo_runtime:pgr_demo_runtime_pw@localhost:5432/graph_rag_studio"
+export GOOGLE_API_KEY="..."
+uv run postgres-graph-rag-studio --provider gemini
+# -- or, at zero cost, matching a schema set up with --provider offline (or openai):
+uv run postgres-graph-rag-studio --provider offline
+```
+
+Then open `http://127.0.0.1:8501`. A few things worth knowing before you do:
+
+- **The Studio only ever needs the restricted runtime DSN** (`PGR_RUNTIME_URL`/`--runtime-url`)
+  — never an admin DSN. There is no schema setup, reset, or other administrative DDL
+  reachable from the Studio; run `postgres-graph-rag-demo setup` once, separately, as above.
+- **One provider per process.** `--provider` is fixed for the whole process's lifetime — every
+  browser session ingesting through this Studio uses that same provider and the schema
+  dimension it implies. Switching providers means restarting the Studio against a schema
+  provisioned for the new provider (a fresh `setup --provider ...`), not a per-session choice.
+- **One session per browser, not per tab.** The session cookie is shared across every tab
+  of the same browser; opening the Studio in ten tabs still shares one accumulated set of
+  documents, not ten independent ones.
+- **Comparing modes is free; comparing answers costs money.** "Compare modes" retrieves
+  evidence for all three modes (vector/hybrid/hybrid+graph) with **zero** answer-generation
+  calls. Generating a real answer for all three modes at once ("Generate all three answers")
+  is a separate, explicitly labelled action, since it costs three live-provider calls where
+  a normal "Ask" costs one.
+- **Multi-document graph recall.** The Playground and Studio seed traversal from up to three
+  retrieved chunks (`min(3, top_k)`); the core library/MCP default remains one. This improves
+  recall for questions spanning several pasted documents, but is a bounded recall mitigation,
+  not a guarantee that every edge asserted by every retrieved passage is displayed.
+- **"Remove session documents" deletes documents, their chunks, and their mentions** —
+  matching `delete_document()`'s existing, documented behavior. It does not guarantee every
+  graph entity/edge is swept if it becomes fully orphaned; this is a best-effort cleanup,
+  not a schema reset. The same best-effort removal also runs automatically when a session
+  expires (2-hour TTL, or LRU eviction past 200 concurrent sessions) and on graceful Studio
+  shutdown — if that cleanup itself fails, it's logged (by tenant/namespace only, never a
+  DSN or key) and the session is dropped from memory regardless, so the process doesn't hang
+  indefinitely on a failed deletion.
+- **Loopback-only by default, no CORS, no authentication.** The Studio binds to
+  `127.0.0.1` and refuses `--host 0.0.0.0`-style binding unless you pass
+  `--allow-non-loopback-bind` and accept that risk yourself. This is a local, single-operator
+  demo tool — it is **not** hardened for a hosted, multi-user, or internet-facing deployment.
+
+**Troubleshooting**
+
+| Symptom | Cause / fix |
+|---|---|
+| `provider=X needs N-dimensional embeddings, but this schema is provisioned for M dimensions` | The Studio's/CLI's `--provider` doesn't match the dimension `setup --provider ...` used for this database. Provision a separate database for the provider you want, or use the provider matching the existing schema. |
+| `Missing a dependency required by the Studio (No module named 'uvicorn'/'fastapi'/...)` | Run `uv sync --extra studio` (or `pip install "postgres-graph-rag[studio]"` for an installed wheel). |
+| `provider=openai requires OPENAI_API_KEY...` / `provider=gemini requires GOOGLE_API_KEY...` | Export the corresponding key before launching (`OPENAI_API_KEY`/`GOOGLE_API_KEY`), or use `--provider offline`. |
+| `provider=litellm requires ...` | Set all five `LITELLM_*` variables shown above. Confirm the model aliases exist in the gateway and that the configured embedding dimension is exact. |
+| `PGR_RUNTIME_URL is required` | Export it, or pass `--runtime-url` — this must be the *restricted runtime* DSN, never the admin DSN. |
+| Connection refused / `psycopg.OperationalError` | PostgreSQL isn't reachable at the given DSN — confirm it's running (`docker compose up -d postgres`) and the host/port/credentials are correct. |
+| `Refusing to bind to '0.0.0.0'...` | Expected — pass `--allow-non-loopback-bind` only if you specifically intend to expose the Studio beyond localhost and accept that it has no authentication. |
 
 ---
 
@@ -648,3 +819,29 @@ docker compose up -d
 # tests/test_tenancy.py).
 uv run pytest
 ```
+
+> **macOS development note:** if this repository is located under an
+> iCloud/File Provider-managed Desktop or Documents directory, keep the
+> physical virtual environment outside that directory. macOS can
+> asynchronously mark files under File Provider control as `hidden`, and
+> CPython's `site` module deliberately skips a hidden editable-install
+> `.pth` file — this shows up as `ModuleNotFoundError: No module named
+> 'postgres_graph_rag'` from console scripts or from an import outside the
+> repository, even while `uv run pytest` from the repository root still
+> passes (pytest's own rootdir handling takes a different path and isn't
+> affected). If you hit this: move `.venv` to a location outside iCloud
+> sync (e.g. `~/.local/share/uv-project-envs/<project>`) and replace the
+> repository's `.venv` with a symlink to it — `uv sync`/`uv run` and
+> editor auto-detection both continue working normally. Setting `uv`'s
+> `UV_PROJECT_ENVIRONMENT` to an external path is a documented alternative,
+> but it requires that variable to be set in every shell, editor, and
+> automation context that runs `uv`, so the symlink is usually simpler.
+> Diagnose with:
+> ```bash
+> stat -f '%Sf %N' .venv/lib/python*/site-packages/*editable*.pth
+> .venv/bin/python -v -c 'pass' 2>&1 | grep -E 'Processing|Skipping hidden'
+> ```
+> `Skipping hidden .pth file` means you have this issue; `Processing .pth
+> file` means you don't. **Do not replace an external-environment symlink
+> with a physical in-tree `.venv` on an affected machine** — that
+> reintroduces the problem.

@@ -3,24 +3,55 @@ from typing import Literal, TypedDict, Optional, List
 from .filters import MetadataFilter
 
 
-class ProviderConfig(TypedDict):
+class _RequiredProviderConfig(TypedDict):
     extraction_model: str
     embedding_model: str
     dimension: int
 
 
+class ProviderConfig(_RequiredProviderConfig, total=False):
+    # Explicit dispatch is required for OpenAI-compatible gateways: a
+    # LiteLLM model alias need not contain "gpt" even though it uses the
+    # OpenAI wire protocol.
+    api_family: Literal["openai", "google", "offline"]
+
+
 # Default configurations for the current era
 OPENAI_DEFAULT_CONFIG: ProviderConfig = {
-    "extraction_model": "gpt-5-nano-2025-08-07",
+    "extraction_model": "gpt-5.6-luna",
     "embedding_model": "text-embedding-3-small",
     "dimension": 1536,
+    "api_family": "openai",
 }
 
 GOOGLE_DEFAULT_CONFIG: ProviderConfig = {
     "extraction_model": "gemini-3.1-flash-lite",
     "embedding_model": "gemini-embedding-001",
     "dimension": 3072,
+    "api_family": "google",
 }
+
+
+def build_litellm_config(
+    *, extraction_model: str, embedding_model: str, dimension: int,
+) -> ProviderConfig:
+    """Build an OpenAI-compatible LiteLLM provider configuration.
+
+    Model aliases and embedding dimensions are deployment-specific in a
+    LiteLLM gateway, so this project intentionally has no guessed defaults.
+    """
+    if not extraction_model.strip():
+        raise ValueError("LiteLLM extraction model must not be empty")
+    if not embedding_model.strip():
+        raise ValueError("LiteLLM embedding model must not be empty")
+    if not isinstance(dimension, int) or isinstance(dimension, bool) or dimension <= 0:
+        raise ValueError("LiteLLM embedding dimension must be a positive integer")
+    return {
+        "extraction_model": extraction_model.strip(),
+        "embedding_model": embedding_model.strip(),
+        "dimension": dimension,
+        "api_family": "openai",
+    }
 
 
 class RetrievalConfig(TypedDict, total=False):

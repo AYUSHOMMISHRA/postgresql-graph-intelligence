@@ -107,7 +107,9 @@ class CommunityEngine:
                     """,
                     (str(tenant_id), namespace),
                 )
-                run_id = (await cur.fetchone())["id"]
+                run_id_row = await cur.fetchone()
+                assert run_id_row is not None  # INSERT ... RETURNING always returns exactly one row
+                run_id = run_id_row["id"]
 
                 await cur.execute(
                     f"""
@@ -121,7 +123,9 @@ class CommunityEngine:
                     f"SELECT count(*) AS c FROM {SCHEMA}.community_memberships WHERE tenant_id=%s AND run_id=%s",
                     (str(tenant_id), run_id),
                 )
-                node_count = (await cur.fetchone())["c"]
+                node_count_row = await cur.fetchone()
+                assert node_count_row is not None  # SELECT count(*) always returns exactly one row
+                node_count = node_count_row["c"]
 
                 converged = False
                 iterations_run = 0
@@ -172,7 +176,9 @@ class CommunityEngine:
                     f"SELECT count(DISTINCT community_id) AS c FROM {SCHEMA}.community_memberships WHERE tenant_id=%s AND run_id=%s",
                     (str(tenant_id), run_id),
                 )
-                community_count = (await cur.fetchone())["c"]
+                community_count_row = await cur.fetchone()
+                assert community_count_row is not None  # SELECT count(*) always returns exactly one row
+                community_count = community_count_row["c"]
                 duration_ms = int((time.perf_counter() - start) * 1000)
 
                 await cur.execute(

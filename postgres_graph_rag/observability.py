@@ -15,6 +15,7 @@ violates this is possible; the convention is documented here because it's
 the actual contract this module's built-in call sites follow.
 """
 
+import inspect
 import logging
 import time
 import uuid
@@ -143,7 +144,12 @@ class EventBus:
         for sink in self.sinks:
             try:
                 result = sink.emit(event)
-                if hasattr(result, "__await__"):
+                # inspect.isawaitable() (unlike a bare hasattr(result,
+                # "__await__") check) is recognized by mypy as narrowing
+                # `result` to Awaitable[Any], since sink.emit() can return
+                # either None (a sync EventSink) or a coroutine (an
+                # AsyncEventSink).
+                if inspect.isawaitable(result):
                     await result
             except Exception:  # noqa: BLE001
                 logger.exception("Event sink %r raised while handling %s", sink, event.kind)

@@ -2,7 +2,7 @@
 .env.*
 !.env.example
 sandbox/**/*.py
-.venv/
+.venv
 *.egg-info/
 .pytest_cache/
 .DS_Store

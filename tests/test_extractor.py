@@ -12,7 +12,11 @@ from postgres_graph_rag.extractor import (
     ModelVerdict,
     VerificationBatchResult,
 )
-from postgres_graph_rag.models import GOOGLE_DEFAULT_CONFIG, OPENAI_DEFAULT_CONFIG
+from postgres_graph_rag.models import (
+    GOOGLE_DEFAULT_CONFIG,
+    OPENAI_DEFAULT_CONFIG,
+    build_litellm_config,
+)
 
 
 def _extractor_openai() -> LLMExtractor:
@@ -29,12 +33,28 @@ def _extractor_google() -> LLMExtractor:
 
 @pytest.mark.asyncio
 async def test_openai_parse_none_raises():
+    """A cleanly-completed call with no refusal but a missing `.parsed`
+    (schema-conforming JSON missing) must raise ExtractionRefusedError, the
+    same as Gemini's equivalent case just below -- not an opaque
+    AttributeError from `None.triplets`, which is what this reproduced and
+    fixed."""
     ext = _extractor_openai()
     completion = MagicMock()
-    completion.choices = [MagicMock(message=MagicMock(parsed=None))]
+    completion.choices = [MagicMock(message=MagicMock(parsed=None, refusal=None))]
     ext.openai_client.beta.chat.completions.parse = AsyncMock(return_value=completion)
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ExtractionRefusedError):
+        await ext._extract_openai("text", "prompt")
+
+
+@pytest.mark.asyncio
+async def test_openai_refusal_raises_extraction_refused():
+    ext = _extractor_openai()
+    completion = MagicMock()
+    completion.choices = [MagicMock(message=MagicMock(parsed=None, refusal="I can't help with that."))]
+    ext.openai_client.beta.chat.completions.parse = AsyncMock(return_value=completion)
+
+    with pytest.raises(ExtractionRefusedError, match="refused"):
         await ext._extract_openai("text", "prompt")
 
 
@@ -99,7 +119,7 @@ async def test_verify_openai_parses_verdicts():
     ext = _extractor_openai()
     completion = MagicMock()
     completion.usage = None
-    completion.choices = [MagicMock(message=MagicMock(parsed=VerificationBatchResult(
+    completion.choices = [MagicMock(message=MagicMock(refusal=None, parsed=VerificationBatchResult(
         verdicts=[ModelVerdict(claim_id="c1", verdict="supported", supporting_quote="X depends on Y", confidence=0.9)],
     )))]
     ext.openai_client.beta.chat.completions.parse = AsyncMock(return_value=completion)
@@ -179,3 +199,25 @@ async def test_verify_claims_raises_for_unsupported_model():
     ext = LLMExtractor(config={**OPENAI_DEFAULT_CONFIG, "extraction_model": "some-other-model"})
     with pytest.raises(ValueError, match="not supported or API key missing"):
         await ext.verify_claims("prompt")
+
+
+@pytest.mark.asyncio
+async def test_litellm_alias_dispatches_through_openai_protocol():
+    config = build_litellm_config(
+        extraction_model="production-graph-chat",
+        embedding_model="production-graph-embed",
+        dimension=768,
+    )
+    ext = LLMExtractor(config=config, openai_api_key="test", openai_base_url="http://localhost:4000/v1")
+    ext._verify_openai = AsyncMock(return_value=[])
+
+    await ext.verify_claims("prompt")
+
+    ext._verify_openai.assert_awaited_once_with("prompt")
+
+
+def test_litellm_config_rejects_invalid_dimension():
+    with pytest.raises(ValueError, match="positive integer"):
+        build_litellm_config(
+            extraction_model="chat", embedding_model="embed", dimension=0,
+        )

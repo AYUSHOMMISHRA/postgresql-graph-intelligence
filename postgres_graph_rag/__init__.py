@@ -12,6 +12,7 @@ from .tenant_engine import (
     AnswerResult,
 )
 from .offline import OfflineExtractor
+from .models import build_litellm_config
 from .tenancy import SchemaCompatibilityError
 from .grounding import (
     AnswerClaim,
@@ -44,6 +45,7 @@ __all__ = [
     "Citation",
     "AnswerResult",
     "OfflineExtractor",
+    "build_litellm_config",
     "SchemaCompatibilityError",
     "AnswerClaim",
     "ClaimVerification",

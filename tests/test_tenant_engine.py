@@ -103,6 +103,25 @@ async def test_graph_expansion_seeds_only_the_best_evidence_chunk():
 
 
 @pytest.mark.asyncio
+async def test_graph_expansion_seeds_all_configured_evidence_chunks():
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "first", "first chunk", 0.04),
+        hit("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "second", "second chunk", 0.03),
+        hit("cccccccc-cccc-cccc-cccc-cccccccccccc", "third", "third chunk", 0.02),
+    ]
+    store.mentioned_node_scores_for_chunks.return_value = {}
+
+    await engine(store, graph_seed_chunks=3).retrieve("q", "ns", top_k=3)
+
+    assert store.mentioned_node_scores_for_chunks.call_args.args[1] == {
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa": 0.04,
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb": 0.03,
+        "cccccccc-cccc-cccc-cccc-cccccccccccc": 0.02,
+    }
+
+
+@pytest.mark.asyncio
 async def test_exact_query_identifier_selects_matching_graph_seed_chunk():
     store = AsyncMock()
     store.hybrid_search.return_value = [
@@ -167,6 +186,52 @@ async def test_graph_edge_evidence_is_added_as_citable_context():
     assert [citation.source_id for citation in answer.citations] == ["ownership-001"]
     assert [chunk.source_id for chunk in answer.retrieval.chunks] == ["deployment", "ownership-001"]
     store.get_edges_evidence.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_answer_surfaces_graph_edges_as_relationship_hints_in_prompt():
+    """Regression test for a real gap found via a live Gemini run: answer()'s
+    prompt previously contained only raw chunk prose, so a model had to
+    re-derive a multi-hop chain itself even when both facts were present
+    verbatim -- observed directly to make gemini-3.1-flash-lite abstain with
+    "Insufficient evidence" despite the connecting fact being retrieved.
+    Asserts the already-traversed graph edges are now surfaced as an
+    explicit relationship hint, distinct from (and in addition to) any
+    edge-evidence chunk merged in via get_edges_evidence (see
+    test_graph_edge_evidence_is_added_as_citable_context above)."""
+
+    class RecordingExtractor(FakeExtractor):
+        seen_prompt = None
+
+        async def generate_text(self, prompt, max_tokens=500):
+            RecordingExtractor.seen_prompt = prompt
+            return "Identity Team owns it [doc-a#0]"
+
+    store = AsyncMock()
+    store.hybrid_search.return_value = [
+        hit("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "doc-a", "checkout-service depends_on auth-service", 0.04),
+    ]
+    store.mentioned_node_scores_for_chunks.return_value = {"node-a": 1.0}
+    store.traverse_graph.return_value = {
+        "nodes": [
+            {"id": "node-a", "content": "auth-service", "metadata": {}, "hop_distance": 0, "score": 1.0},
+            {"id": "node-b", "content": "Identity Team", "metadata": {}, "hop_distance": 1, "score": 0.7},
+        ],
+        "edges": [{
+            "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            "source_node_id": "node-a", "target_node_id": "node-b",
+            "source_content": "auth-service", "target_content": "Identity Team",
+            "relation": "owned_by", "weight": 1.0,
+        }],
+    }
+    store.get_edges_evidence.return_value = []  # isolate from the separate citable-chunk-merging feature
+
+    await engine(store, extractor=RecordingExtractor()).answer(
+        "Which team owns the dependency of checkout-service?", "ns", top_k=1, hops=2
+    )
+
+    assert "Known relationships" in RecordingExtractor.seen_prompt
+    assert "auth-service --[owned_by]--> Identity Team" in RecordingExtractor.seen_prompt
 
 
 @pytest.mark.asyncio

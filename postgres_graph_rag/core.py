@@ -42,6 +42,7 @@ class PostgresGraphRAG:
         ingestion_config: Optional[IngestionConfig] = None,
         runtime_url: Optional[str] = None,
         extractor: Optional[Any] = None,
+        openai_base_url: Optional[str] = None,
     ):
         """
         Initializes the PostgresGraphRAG instance.
@@ -76,6 +77,7 @@ class PostgresGraphRAG:
             config=config,
             openai_api_key=openai_api_key,
             google_api_key=google_api_key,
+            openai_base_url=openai_base_url,
         )
         self.chunker = chunker or simple_chunker
         self.retrieval_config: RetrievalConfig = {

@@ -23,7 +23,10 @@ jobs:
         with:
           enable-cache: true
       - run: uv python install 3.12
-      - run: uv sync --extra test --extra mcp
+      # `studio` is included here (not just `test`/`mcp`) so
+      # tests/test_studio_app.py and tests/test_studio_cli.py actually run
+      # in CI instead of self-skipping via pytest.importorskip("fastapi").
+      - run: uv sync --extra test --extra mcp --extra studio
       - name: Unit tests
         # Bare invocation: pyproject.toml's addopts already excludes
         # live_provider by default, and test_tenancy.py self-skips without
@@ -36,10 +39,39 @@ jobs:
         # model_verifier, model_verifier_runner, extractor_generation)
         # instead of needing to be extended by hand each time one's added.
         run: uv run pytest -q
+      - name: Verify Studio tests actually ran (did not silently skip)
+        run: |
+          set -o pipefail
+          uv run pytest -q -rs tests/test_studio_app.py tests/test_studio_cli.py | tee /tmp/studio-test-output.log
+          if grep -qi "skipped" /tmp/studio-test-output.log; then
+            echo "Studio tests were skipped -- the 'studio' extra must be installed in this job."
+            exit 1
+          fi
       - name: Static checks
         run: uv run ruff check postgres_graph_rag tests benchmarks
       - name: Build wheel and source distribution
         run: uv build
+      - name: Install the built wheel into an isolated venv
+        run: |
+          python3 -m venv /tmp/wheel-venv
+          /tmp/wheel-venv/bin/pip install --quiet dist/*.whl
+      - name: Verify console entry points and packaged templates from the installed wheel
+        run: |
+          /tmp/wheel-venv/bin/postgres-graph-rag-demo --help > /dev/null
+          /tmp/wheel-venv/bin/pip show -f postgres-graph-rag | grep -q "templates/index.html"
+      - name: Verify the documented missing-extra message from the installed wheel
+        run: |
+          set +e
+          output=$(/tmp/wheel-venv/bin/postgres-graph-rag-studio --runtime-url "postgresql://x:x@localhost/x" 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          [ "$status" -ne 0 ]
+          echo "$output" | grep -q "uv sync --extra studio"
+      - name: Verify the Studio entry point works once its extra is installed, from the same wheel
+        run: |
+          /tmp/wheel-venv/bin/pip install --quiet "$(ls dist/*.whl)[studio]"
+          /tmp/wheel-venv/bin/postgres-graph-rag-studio --help > /dev/null
 
   postgres:
     runs-on: ubuntu-latest

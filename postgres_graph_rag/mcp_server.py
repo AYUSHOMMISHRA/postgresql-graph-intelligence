@@ -38,6 +38,8 @@ merge needs mention-level provenance this schema doesn't keep), so there is
 no real operation to wire up.
 """
 
+from __future__ import annotations
+
 import ipaddress
 import logging
 import uuid
@@ -48,10 +50,18 @@ from mcp.server.mcpserver import Context, MCPServer
 
 from .communities import CommunityEngine
 from .core import PostgresGraphRAG
+from .tenancy import SecureGraphStore
 
 logger = logging.getLogger("postgres_graph_rag")
 
-TenantResolver = Callable[[Context], uuid.UUID]
+# The MCP SDK's Context is generic over (lifespan-state type, request type);
+# every tool function's ctx parameter is parameterized with the concrete
+# _LifespanState this server actually puts there (see lifespan() below), not
+# left bare -- a bare `Context` (or worse, `Context = None` with no Optional)
+# type-checked incorrectly against what's really stored in
+# ctx.request_context.lifespan_context at runtime.
+_ServerContext = Context["_LifespanState", Any]
+TenantResolver = Callable[[_ServerContext], uuid.UUID]
 
 
 def _is_loopback(host: str) -> bool:
@@ -62,21 +72,46 @@ def _is_loopback(host: str) -> bool:
 
 
 class _LifespanState:
-    def __init__(self, rag: PostgresGraphRAG, communities: CommunityEngine, tenant_resolver: Optional[TenantResolver]):
+    def __init__(
+        self,
+        rag: PostgresGraphRAG,
+        communities: CommunityEngine,
+        tenant_resolver: Optional[TenantResolver],
+        store: SecureGraphStore,
+    ):
         self.rag = rag
         self.communities = communities
         self.tenant_resolver = tenant_resolver
+        # The same store `lifespan()` already constructed via
+        # rag._get_or_create_store() before yielding -- exposed directly
+        # here (not via the private `rag._secure_store`, which is typed
+        # Optional since it's normally lazy) so every tool function gets a
+        # plainly non-Optional, already-initialized store.
+        self.store = store
 
 
-def _resolve_tenant(ctx: Context, stdio_tenant_id: Optional[uuid.UUID]) -> uuid.UUID:
-    state: _LifespanState = ctx.request_context.lifespan_context
+def _lifespan_state(ctx: Optional[_ServerContext]) -> _LifespanState:
+    """Every tool function's `ctx` parameter is `Optional[...]` only because
+    the MCP framework itself supplies it via dependency injection at call
+    time (the `= None` default lets the framework introspect the tool's
+    signature without a caller needing to pass one) -- a real invocation
+    never actually gets here with `ctx=None`. Asserting that explicitly, in
+    one place, both documents the real invariant and lets every call site
+    treat the returned state as plain, non-Optional `_LifespanState`."""
+    assert ctx is not None, "ctx is required (supplied by the MCP framework at call time)"
+    return ctx.request_context.lifespan_context
+
+
+def _resolve_tenant(ctx: Optional[_ServerContext], stdio_tenant_id: Optional[uuid.UUID]) -> uuid.UUID:
     if stdio_tenant_id is not None:
         return stdio_tenant_id
+    state = _lifespan_state(ctx)
     if state.tenant_resolver is None:
         raise PermissionError(
             "No tenant could be resolved for this request: no static stdio "
             "tenant configured and no tenant_resolver supplied."
         )
+    assert ctx is not None  # narrowed by _lifespan_state's own assert above
     return state.tenant_resolver(ctx)
 
 
@@ -108,7 +143,7 @@ def build_server(
         # missing-runtime_url validation must be identical either way.
         store = rag._get_or_create_store()
         communities = CommunityEngine(store)
-        yield _LifespanState(rag, communities, tenant_resolver)
+        yield _LifespanState(rag, communities, tenant_resolver, store)
 
     server = MCPServer(name=name, lifespan=lifespan)
 
@@ -117,7 +152,7 @@ def build_server(
     # ------------------------------------------------------------------
 
     @server.tool()
-    async def retrieve(question: str, namespace: str, top_k: int = 5, ctx: Context = None) -> Dict[str, Any]:
+    async def retrieve(question: str, namespace: str, top_k: int = 5, ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
         """Retrieves evidence (hybrid chunk search + graph neighborhood) for a question."""
         tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
         engine = rag.for_tenant(tenant_id)
@@ -130,7 +165,7 @@ def build_server(
         }
 
     @server.tool()
-    async def answer(question: str, namespace: str, top_k: int = 5, ctx: Context = None) -> Dict[str, Any]:
+    async def answer(question: str, namespace: str, top_k: int = 5, ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
         """Returns a grounded answer with citations validated against retrieved chunks."""
         tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
         result = await rag.for_tenant(tenant_id).answer(question, namespace, top_k=top_k)
@@ -143,29 +178,29 @@ def build_server(
         }
 
     @server.tool()
-    async def get_entity(name: str, namespace: str, ctx: Context = None) -> Dict[str, Any]:
+    async def get_entity(name: str, namespace: str, ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
         """Looks up an entity by name (nearest match) and its supporting documents."""
         tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-        state: _LifespanState = ctx.request_context.lifespan_context
+        state = _lifespan_state(ctx)
         embedding = await rag.extractor.get_embedding(name)
-        matches = await state.rag._secure_store.vector_search_nodes(tenant_id, namespace, embedding, top_k=1)
+        matches = await state.store.vector_search_nodes(tenant_id, namespace, embedding, top_k=1)
         if not matches:
             return {"found": False}
         node = matches[0]
-        docs = await state.rag._secure_store.get_mentioning_documents(tenant_id, namespace, str(node["id"]))
+        docs = await state.store.get_mentioning_documents(tenant_id, namespace, str(node["id"]))
         return {"found": True, "id": str(node["id"]), "content": node["content"], "documents": docs}
 
     @server.tool()
     async def find_paths(
         seed_entities: List[str], namespace: str, max_hops: int = 2,
         target_entities: Optional[List[str]] = None, top_k: int = 5,
-        ctx: Context = None
+        ctx: Optional[_ServerContext] = None
     ) -> Dict[str, Any]:
         """Returns ranked paths when targets are supplied; otherwise returns
         the legacy graph neighborhood around the seed entities."""
         tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-        state: _LifespanState = ctx.request_context.lifespan_context
-        store = state.rag._secure_store
+        state = _lifespan_state(ctx)
+        store = state.store
         engine = rag.for_tenant(tenant_id)
         if target_entities:
             return {
@@ -193,7 +228,7 @@ def build_server(
 
     @server.tool()
     async def explain_connection(
-        source_entity: str, target_entity: str, namespace: str, max_hops: int = 3, ctx: Context = None
+        source_entity: str, target_entity: str, namespace: str, max_hops: int = 3, ctx: Optional[_ServerContext] = None
     ) -> Dict[str, Any]:
         """Reconstructs the actual reasoning path between two named
         entities (e.g. "how is Alice connected to Payments"), as an ordered
@@ -214,17 +249,17 @@ def build_server(
         }
 
     @server.tool()
-    async def list_communities(namespace: str, ctx: Context = None) -> List[Dict[str, Any]]:
+    async def list_communities(namespace: str, ctx: Optional[_ServerContext] = None) -> List[Dict[str, Any]]:
         """Lists the most recently computed communities for a namespace."""
         tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-        state: _LifespanState = ctx.request_context.lifespan_context
+        state = _lifespan_state(ctx)
         return await state.communities.list_communities(tenant_id, namespace)
 
     @server.tool()
-    async def get_community_summary(namespace: str, community_id: str, ctx: Context = None) -> Dict[str, Any]:
+    async def get_community_summary(namespace: str, community_id: str, ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
         """Gets the stored summary for a specific community, if one exists."""
         tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-        state: _LifespanState = ctx.request_context.lifespan_context
+        state = _lifespan_state(ctx)
         results = await state.communities.query_global(tenant_id, namespace, "", top_k=100)
         for r in results:
             if r["community_id"] == community_id:
@@ -232,7 +267,7 @@ def build_server(
         return {"found": False}
 
     @server.tool()
-    async def capabilities(ctx: Context = None) -> Dict[str, Any]:
+    async def capabilities(ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
         """Reports which tools are enabled on this server instance."""
         return {
             "read_only_tools": ["retrieve", "answer", "get_entity", "find_paths", "explain_connection", "list_communities", "get_community_summary"],
@@ -244,7 +279,7 @@ def build_server(
         }
 
     @server.tool()
-    async def health(ctx: Context = None) -> Dict[str, Any]:
+    async def health(ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
         """Database liveness and secure-schema compatibility state."""
         try:
             if rag._secure_store is None:
@@ -261,7 +296,7 @@ def build_server(
     if enable_mutations:
         @server.tool()
         async def ingest_documents(
-            documents: List[Dict[str, str]], namespace: str, ctx: Context = None
+            documents: List[Dict[str, str]], namespace: str, ctx: Optional[_ServerContext] = None
         ) -> Dict[str, Any]:
             """Ingests documents: each item is {"source_id": ..., "text": ...}."""
             tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
@@ -273,7 +308,7 @@ def build_server(
             return {"results": reports}
 
         @server.tool()
-        async def delete_document(namespace: str, source_id: str, ctx: Context = None) -> Dict[str, Any]:
+        async def delete_document(namespace: str, source_id: str, ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
             """Deletes a document and its chunks/mentions (entities remain if other documents still support them)."""
             tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
             engine = rag.for_tenant(tenant_id)
@@ -282,25 +317,25 @@ def build_server(
 
         @server.tool()
         async def merge_entities(
-            namespace: str, source_content: str, target_content: str, ctx: Context = None
+            namespace: str, source_content: str, target_content: str, ctx: Optional[_ServerContext] = None
         ) -> Dict[str, Any]:
             """Manually merges one entity into another (corrects a missed automatic resolution)."""
             tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-            state: _LifespanState = ctx.request_context.lifespan_context
-            return await state.rag._secure_store.merge_entities(tenant_id, namespace, source_content, target_content)
+            state = _lifespan_state(ctx)
+            return await state.store.merge_entities(tenant_id, namespace, source_content, target_content)
 
         @server.tool()
-        async def refresh_communities(namespace: str, force: bool = False, ctx: Context = None) -> Dict[str, Any]:
+        async def refresh_communities(namespace: str, force: bool = False, ctx: Optional[_ServerContext] = None) -> Dict[str, Any]:
             """Recomputes communities for a namespace (skipped if not dirty, unless force=True)."""
             tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-            state: _LifespanState = ctx.request_context.lifespan_context
+            state = _lifespan_state(ctx)
             return await state.communities.refresh_communities(tenant_id, namespace, force=force)
 
         @server.tool()
-        async def summarize_communities(namespace: str, ctx: Context = None) -> List[Dict[str, Any]]:
+        async def summarize_communities(namespace: str, ctx: Optional[_ServerContext] = None) -> List[Dict[str, Any]]:
             """Generates/refreshes summaries for the namespace's current communities."""
             tenant_id = _resolve_tenant(ctx, stdio_tenant_id)
-            state: _LifespanState = ctx.request_context.lifespan_context
+            state = _lifespan_state(ctx)
             return await state.communities.summarize_communities(tenant_id, namespace, rag.extractor)
 
     return server
@@ -358,6 +393,12 @@ def main() -> None:
     parser.add_argument("--runtime-url", default=os.getenv("PGR_RUNTIME_URL"))
     parser.add_argument("--openai-api-key", default=os.getenv("OPENAI_API_KEY"))
     parser.add_argument("--google-api-key", default=os.getenv("GOOGLE_API_KEY"))
+    parser.add_argument(
+        "--provider",
+        choices=["openai", "gemini", "litellm"],
+        default=os.getenv("PGR_PROVIDER"),
+        help="Provider for embeddings and generation. Defaults to the existing key-based OpenAI/Gemini selection.",
+    )
     parser.add_argument("--transport", choices=["stdio", "http"], default="stdio")
     parser.add_argument("--tenant-id", default=os.getenv("PGR_STDIO_TENANT_ID"), help="Required for --transport stdio")
     parser.add_argument("--host", default="127.0.0.1")
@@ -369,11 +410,30 @@ def main() -> None:
     if not args.runtime_url:
         parser.error("--runtime-url (or PGR_RUNTIME_URL) is required")
 
-    rag = PostgresGraphRAG(
-        runtime_url=args.runtime_url,
-        openai_api_key=args.openai_api_key,
-        google_api_key=args.google_api_key,
-    )
+    if args.provider:
+        from . import playground_service
+
+        try:
+            provider_kwargs = (
+                playground_service.litellm_kwargs_from_env()
+                if args.provider == "litellm"
+                else {}
+            )
+            extractor = playground_service.build_extractor(
+                args.provider,
+                openai_api_key=args.openai_api_key,
+                google_api_key=args.google_api_key,
+                **provider_kwargs,
+            )
+        except playground_service.PlaygroundInputError as exc:
+            parser.error(str(exc))
+        rag = PostgresGraphRAG(runtime_url=args.runtime_url, extractor=extractor)
+    else:
+        rag = PostgresGraphRAG(
+            runtime_url=args.runtime_url,
+            openai_api_key=args.openai_api_key,
+            google_api_key=args.google_api_key,
+        )
 
     async def _run():
         try:

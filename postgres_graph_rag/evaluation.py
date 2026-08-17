@@ -144,7 +144,15 @@ def score_case(case: BenchmarkCase, result: Any) -> Dict[str, Any]:
     hits = sum(rank is not None and rank <= 5 for rank in entity_ranks)
     recall_at_5 = hits / len(expected) if expected else 1.0
     precision_at_5 = hits / min(5, max(1, len(ranked)))
-    reciprocal_rank = 1.0 / min(entity_ranks) if entity_ranks and all(entity_ranks) else 0.0
+    if entity_ranks and all(entity_ranks):
+        # all(entity_ranks) just confirmed every element is truthy (so,
+        # given `rank = min(ranks) if ranks else None` above, not None --
+        # ranks are always >= 1) -- filtered explicitly so min() below gets
+        # a properly-typed List[int], not List[Optional[int]].
+        found_ranks = [rank for rank in entity_ranks if rank is not None]
+        reciprocal_rank = 1.0 / min(found_ranks)
+    else:
+        reciprocal_rank = 0.0
     returned_relations = {edge.relation for edge in result.edges}
     path_match = (
         all(relation in returned_relations for relation in case.required_relations)

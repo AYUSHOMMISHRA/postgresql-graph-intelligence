@@ -13,21 +13,33 @@ classifiers = [
 ]
 dependencies = [
     "psycopg[binary,pool]>=3.1.18",
-    "pgvector>=0.2.5",
     "openai>=1.12.0",
     "google-genai>=0.1.0",
     "pydantic>=2.6.0",
     "python-dotenv>=1.0.1",
 ]
 
+# Extras contract:
+#   test   -- pytest itself. Running the full test suite (including
+#             tests/test_studio_app.py and tests/test_studio_cli.py) also
+#             requires the `studio` extra; `test` alone lets Studio's tests
+#             self-skip via pytest.importorskip("fastapi"). CI installs
+#             `test` and `studio` together for exactly this reason -- see
+#             .github/workflows/ci.yml's `unit` job.
+#   mcp    -- required to import/run postgres_graph_rag.mcp_server.
+#   studio -- required to import/run postgres_graph_rag.studio_app/studio_cli
+#             (the `postgres-graph-rag-studio` console script) and to run its
+#             tests. Installing the base package alone gives a clear
+#             "install with: uv sync --extra studio" message instead of a
+#             raw ImportError if this extra is missing.
+#   dev    -- everything above, plus lint/type-check/coverage tooling.
 [project.optional-dependencies]
 test = [
     "pytest>=8.0.0",
-    "pytest-mock>=3.12.0",
     "pytest-asyncio>=0.23.0",
 ]
 dev = [
-    "postgres-graph-rag[test,mcp]",
+    "postgres-graph-rag[test,mcp,studio]",
     "ruff>=0.6.0",
     "mypy>=1.11.0",
     "coverage>=7.6.0",
@@ -39,6 +51,13 @@ build = [
 mcp = [
     "mcp>=2,<3",
 ]
+studio = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",  # required by fastapi.testclient.TestClient (tests/test_studio_app.py)
+]
 
 [project.urls]
 Homepage = "https://github.com/ayushmishra/postgres-graph-rag"
@@ -48,6 +67,7 @@ Repository = "https://github.com/ayushmishra/postgres-graph-rag"
 postgres-graph-rag-mcp = "postgres_graph_rag.mcp_server:main"
 postgres-graph-rag-demo = "postgres_graph_rag.demo:main"
 postgres-graph-rag-eval = "postgres_graph_rag.evaluation:main"
+postgres-graph-rag-studio = "postgres_graph_rag.studio_cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -60,7 +80,7 @@ packages = ["postgres_graph_rag"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 markers = [
-    "live_provider: makes a real call to a live LLM provider (OpenAI/Gemini) and costs money. Excluded from routine runs by the addopts default below -- run explicitly with `pytest -m live_provider` (requires real OPENAI_API_KEY/GOOGLE_API_KEY) for a manual or nightly credentialed check.",
+    "live_provider: makes a real call to a live LLM provider and costs money. Excluded from routine runs by the addopts default below -- run explicitly with `pytest -m live_provider` with the required provider credentials for a manual or nightly credentialed check.",
 ]
 addopts = "-m 'not live_provider'"
 

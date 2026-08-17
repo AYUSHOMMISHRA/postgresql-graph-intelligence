@@ -8,7 +8,7 @@ the demo measures retrieval and graph behavior rather than provider variance.
 import hashlib
 import math
 import re
-from typing import Iterable, List, Mapping, Optional
+from typing import Iterable, List, Mapping, Optional, overload
 
 from .extractor import Triplet
 from .models import ProviderConfig
@@ -18,6 +18,7 @@ OFFLINE_CONFIG: ProviderConfig = {
     "extraction_model": "offline-fixture",
     "embedding_model": "offline-hash-1536",
     "dimension": 1536,
+    "api_family": "offline",
 }
 
 
@@ -29,7 +30,11 @@ class OfflineExtractor:
         triplets_by_text: Optional[Mapping[str, Iterable[Triplet]]] = None,
         config: Optional[ProviderConfig] = None,
     ) -> None:
-        self.config = config or dict(OFFLINE_CONFIG)
+        # {**OFFLINE_CONFIG} rather than dict(OFFLINE_CONFIG): the dict()
+        # constructor loses ProviderConfig's TypedDict-specific field types
+        # (e.g. "dimension" narrows to plain `object`, not `int`), which
+        # then surfaced as real arithmetic-on-`object` errors below.
+        self.config: ProviderConfig = config or {**OFFLINE_CONFIG}
         self._triplets = {
             text: list(triplets) for text, triplets in (triplets_by_text or {}).items()
         }
@@ -42,7 +47,12 @@ class OfflineExtractor:
     async def extract_triplets(self, text: str) -> List[Triplet]:
         return list(self._triplets.get(text, self._fallback_extract(text)))
 
-    async def get_embedding(self, text: str | List[str]):
+    @overload
+    async def get_embedding(self, text: str) -> List[float]: ...
+    @overload
+    async def get_embedding(self, text: List[str]) -> List[List[float]]: ...
+
+    async def get_embedding(self, text: str | List[str]) -> List[float] | List[List[float]]:
         if isinstance(text, list):
             return [self._embed_one(value) for value in text]
         return self._embed_one(text)

@@ -58,6 +58,17 @@ from .filters import MetadataFilter, compile_metadata_filter
 
 logger = logging.getLogger("postgres_graph_rag")
 
+# Every real connection in this module is opened with row_factory=dict_row
+# (see migrate_schema()/SecureGraphStore._init_pool() below), so every row
+# is actually a dict at runtime -- but a bare, unparameterized
+# `DictConnection` in a function signature defaults its Row type
+# parameter to `tuple[Any, ...]`, which made every `row["column"]` access
+# downstream of that signature look like indexing a tuple with a string to
+# the type checker. This alias is used on every connection/cursor-accepting
+# signature in this module instead, matching what's actually there at
+# runtime; purely a type annotation, no behavior change.
+DictConnection = psycopg.AsyncConnection[Dict[str, Any]]
+
 SCHEMA = "postgres_graph_rag"
 TENANT_GUC = "postgres_graph_rag.tenant_id"
 
@@ -544,7 +555,7 @@ class InsecureRuntimeRoleError(RuntimeError):
     """The connecting role has rolsuper or rolbypassrls set, so RLS would not apply to it."""
 
 
-async def _assert_role_cannot_bypass_rls(conn: psycopg.AsyncConnection) -> None:
+async def _assert_role_cannot_bypass_rls(conn: DictConnection) -> None:
     """Raises InsecureRuntimeRoleError if the connecting role is a superuser
     or has BYPASSRLS — either one makes every RLS policy in this schema a
     no-op for that role, regardless of what the policies say. pg_roles is
@@ -597,7 +608,9 @@ async def migrate_schema(
     try:
         async with conn.cursor() as cur:
             await cur.execute("SELECT pg_try_advisory_lock(%s)", (_MIGRATION_LOCK_KEY,))
-            got_lock = (await cur.fetchone())["pg_try_advisory_lock"]
+            lock_row = await cur.fetchone()
+            assert lock_row is not None  # pg_try_advisory_lock() always returns exactly one row
+            got_lock = lock_row["pg_try_advisory_lock"]
             if not got_lock:
                 raise RuntimeError(
                     "Another migrate_schema() run holds the migration advisory lock "
@@ -623,7 +636,7 @@ async def migrate_schema(
 
 
 async def _migrate_schema_locked(
-    conn: psycopg.AsyncConnection,
+    conn: DictConnection,
     runtime_role: str,
     runtime_password: str,
     embedding_dimension: int,
@@ -928,7 +941,7 @@ class SecureGraphStore:
         # the embedding dimension and is responsible for keeping this in
         # sync; SecureGraphStore has no schema-introspection step of its own.
         self.vector_type = vector_type
-        self.pool: Optional[AsyncConnectionPool] = None
+        self.pool: Optional[AsyncConnectionPool[DictConnection]] = None
         self._pool_min_size = pool_min_size
         self._pool_max_size = pool_max_size
         self._pool_timeout_s = pool_timeout_s
@@ -949,7 +962,7 @@ class SecureGraphStore:
             finally:
                 await probe.close()
 
-            async def _configure(conn: psycopg.AsyncConnection):
+            async def _configure(conn: DictConnection):
                 # Defense in depth: re-checked on every new pooled
                 # connection, not just the one probed above, in case the
                 # pool grows later or role privileges change at runtime. If
@@ -965,7 +978,7 @@ class SecureGraphStore:
                     )
                 await conn.commit()
 
-            self.pool = AsyncConnectionPool(
+            self.pool = AsyncConnectionPool[DictConnection](
                 self.runtime_url,
                 open=False,
                 kwargs={"row_factory": dict_row},
@@ -984,6 +997,7 @@ class SecureGraphStore:
     async def schema_status(self) -> Dict[str, Any]:
         """Read compatibility metadata without requiring tenant context."""
         await self._init_pool()
+        assert self.pool is not None  # _init_pool() always sets it (or raises)
         async with self.pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
@@ -1004,7 +1018,7 @@ class SecureGraphStore:
     @asynccontextmanager
     async def tenant_connection(
         self, tenant_id: uuid.UUID
-    ) -> AsyncIterator[psycopg.AsyncConnection]:
+    ) -> AsyncIterator[DictConnection]:
         """Yields a connection with the tenant GUC set *for the duration of
         one transaction only*. Commits on clean exit, rolls back on
         exception — either way the transaction ends before the connection
@@ -1012,6 +1026,7 @@ class SecureGraphStore:
         can never leak into whatever tenant borrows this physical connection
         next."""
         await self._init_pool()
+        assert self.pool is not None  # _init_pool() always sets it (or raises)
         async with self.pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
@@ -1037,7 +1052,7 @@ class SecureGraphStore:
         prompt_version: str,
         lease_owner: str,
         lease_seconds: int = DEFAULT_LEASE_SECONDS,
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> Dict[str, Any]:
         """Attempts to claim the right to run extraction for this exact
         content hash. Returns one of:
@@ -1064,7 +1079,7 @@ class SecureGraphStore:
             "lease_seconds": lease_seconds,
         }
 
-        async def _run(conn: psycopg.AsyncConnection) -> Dict[str, Any]:
+        async def _run(conn: DictConnection) -> Dict[str, Any]:
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"""
@@ -1125,7 +1140,7 @@ class SecureGraphStore:
         prompt_version: str,
         lease_owner: str,
         result: List[Dict[str, Any]],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> None:
         """Marks a claimed extraction as done, caching `result` for future
         callers. Guarded by `lease_owner` matching, so a lease that expired
@@ -1142,7 +1157,7 @@ class SecureGraphStore:
             lease_owner,
         )
 
-        async def _run(conn: psycopg.AsyncConnection):
+        async def _run(conn: DictConnection):
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"""
@@ -1169,14 +1184,14 @@ class SecureGraphStore:
         model: str,
         prompt_version: str,
         lease_owner: str,
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> None:
         """Releases a claimed lease after an extraction failure, so the next
         attempt (this call's retry, or another worker) can claim it
         immediately instead of waiting out the full lease timeout."""
         params = (str(tenant_id), chunk_hash, provider, model, prompt_version, lease_owner)
 
-        async def _run(conn: psycopg.AsyncConnection):
+        async def _run(conn: DictConnection):
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"""
@@ -1203,7 +1218,7 @@ class SecureGraphStore:
         tenant_id: uuid.UUID,
         namespace: str,
         source_id: str,
-        connection: psycopg.AsyncConnection,
+        connection: DictConnection,
     ) -> None:
         """Transaction-scoped advisory lock (auto-released at commit/
         rollback via pg_advisory_xact_lock) keyed to this exact (tenant,
@@ -1241,12 +1256,13 @@ class SecureGraphStore:
         source_id: str,
         doc_content_hash: str,
         metadata: Optional[Dict[str, Any]] = None,
-        connection: Optional[psycopg.AsyncConnection] = None,
-    ) -> str:
-        """Upserts a document by (tenant, namespace, source_id). Returns the
-        document id and whether its content actually changed since the last
-        ingestion, via the row's content_hash — callers use this to decide
-        whether to replace chunks (see `replace_chunks`).
+        connection: Optional[DictConnection] = None,
+    ) -> Dict[str, Any]:
+        """Upserts a document by (tenant, namespace, source_id). Returns
+        {"id": ..., "content_changed": ...} -- the document id and whether
+        its content actually changed since the last ingestion, via the
+        row's content_hash — callers use this to decide whether to replace
+        chunks (see `replace_chunks`).
 
         Callers publishing a document (as opposed to test setup poking the
         store directly) should call `lock_document_for_publication()` on the
@@ -1254,7 +1270,7 @@ class SecureGraphStore:
         constraint alone isn't sufficient under concurrency."""
         params = (str(tenant_id), namespace, source_id, str(tenant_id), namespace, source_id, doc_content_hash, json.dumps(metadata or {}))
 
-        async def _run(conn: psycopg.AsyncConnection) -> Dict[str, Any]:
+        async def _run(conn: DictConnection) -> Dict[str, Any]:
             async with conn.cursor() as cur:
                 # `old` is evaluated against the pre-statement snapshot (the
                 # same-statement-CTE rule), so it correctly captures the row
@@ -1291,6 +1307,7 @@ class SecureGraphStore:
                     params,
                 )
                 row = await cur.fetchone()
+            assert row is not None  # INSERT ... RETURNING always returns exactly one row
             return {"id": str(row["id"]), "content_changed": row["content_changed"]}
 
         if connection:
@@ -1304,11 +1321,11 @@ class SecureGraphStore:
         tenant_id: uuid.UUID,
         namespace: str,
         source_id: str,
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> Optional[str]:
         params = (str(tenant_id), namespace, source_id)
 
-        async def _run(conn: psycopg.AsyncConnection) -> Optional[str]:
+        async def _run(conn: DictConnection) -> Optional[str]:
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"SELECT content_hash FROM {SCHEMA}.documents WHERE tenant_id=%s AND namespace=%s AND source_id=%s",
@@ -1330,7 +1347,7 @@ class SecureGraphStore:
         error: Optional[str] = None,
         increment_attempts: bool = False,
         expected_content_hash: Optional[str] = None,
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> bool:
         """Records how far graph extraction got for one document, *after*
         its hash/chunks were already published atomically. Extraction itself
@@ -1363,7 +1380,7 @@ class SecureGraphStore:
             hash_clause = "AND content_hash = %s"
             params.append(expected_content_hash)
 
-        async def _run(conn: psycopg.AsyncConnection) -> bool:
+        async def _run(conn: DictConnection) -> bool:
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"""
@@ -1389,7 +1406,7 @@ class SecureGraphStore:
         self,
         tenant_id: uuid.UUID,
         chunk_ids: List[str],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> List[str]:
         """Returns the subset of `chunk_ids` that still exist in
         `document_chunks`. Used to guard against the stale-extraction race:
@@ -1401,7 +1418,7 @@ class SecureGraphStore:
         if not chunk_ids:
             return []
 
-        async def _run(conn: psycopg.AsyncConnection) -> List[str]:
+        async def _run(conn: DictConnection) -> List[str]:
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"SELECT id FROM {SCHEMA}.document_chunks WHERE tenant_id = %s AND id = ANY(%s)",
@@ -1419,7 +1436,7 @@ class SecureGraphStore:
         self,
         tenant_id: uuid.UUID,
         edge_ids: List[str],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> None:
         """Deletes any of `edge_ids` that ended up with zero support: an
         evidence-backed edge is created by `upsert_edges` *before* its
@@ -1435,7 +1452,7 @@ class SecureGraphStore:
         if not edge_ids:
             return
 
-        async def _run(conn: psycopg.AsyncConnection) -> None:
+        async def _run(conn: DictConnection) -> None:
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"""
@@ -1458,7 +1475,7 @@ class SecureGraphStore:
         document_id: str,
         namespace: str,
         chunks: List[Dict[str, Any]],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> List[str]:
         """Atomically replaces all chunks for a document: deletes the old
         set (cascading to entity_mentions) and inserts the new one. This is
@@ -1466,7 +1483,7 @@ class SecureGraphStore:
         transactionally" behavior — simpler than diffing old vs new chunks,
         at the cost of re-writing unchanged chunks too on a partial edit."""
 
-        async def _run(conn: psycopg.AsyncConnection) -> List[str]:
+        async def _run(conn: DictConnection) -> List[str]:
             async with conn.cursor() as cur:
                 await cur.execute(
                     f"DELETE FROM {SCHEMA}.document_chunks WHERE tenant_id=%s AND document_id=%s",
@@ -1599,7 +1616,7 @@ class SecureGraphStore:
         fuzzy: bool = True,
         trgm_threshold: float = 0.4,
         embedding_threshold: float = 0.90,
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> Dict[str, str]:
         """Same layered resolution as `database.py`'s single-tenant version
         (exact normalized match -> trigram+embedding fuzzy match -> new
@@ -1612,7 +1629,7 @@ class SecureGraphStore:
             for e in entities
         ]
 
-        async def _run(conn: psycopg.AsyncConnection) -> Dict[str, str]:
+        async def _run(conn: DictConnection) -> Dict[str, str]:
             original_to_norm: Dict[str, str] = {}
             norm_to_embedding: Dict[str, List[float]] = {}
             norm_to_metadata: Dict[str, Optional[Dict[str, Any]]] = {}
@@ -1754,7 +1771,7 @@ class SecureGraphStore:
         tenant_id: uuid.UUID,
         namespace: str,
         edges: List[Dict[str, Any]],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
         evidence_backed: bool = False,
     ) -> Dict[tuple, str]:
         if not edges:
@@ -1770,7 +1787,7 @@ class SecureGraphStore:
 
         items = list(aggregated.items())
 
-        async def _run(conn: psycopg.AsyncConnection):
+        async def _run(conn: DictConnection):
             edge_ids: Dict[tuple, str] = {}
             async with conn.cursor() as cur:
                 for start in range(0, len(items), MAX_ROWS_PER_STATEMENT):
@@ -1822,7 +1839,7 @@ class SecureGraphStore:
         tenant_id: uuid.UUID,
         chunk_id: str,
         node_ids: List[str],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> None:
         """Records which chunk mentioned which entities — the provenance
         link the single-tenant schema in database.py doesn't have. Lets you
@@ -1832,7 +1849,7 @@ class SecureGraphStore:
             return
         rows = [(str(tenant_id), chunk_id, node_id) for node_id in set(node_ids)]
 
-        async def _run(conn: psycopg.AsyncConnection):
+        async def _run(conn: DictConnection):
             async with conn.cursor() as cur:
                 await cur.executemany(
                     f"""
@@ -1854,14 +1871,14 @@ class SecureGraphStore:
         tenant_id: uuid.UUID,
         chunk_id: str,
         edge_ids: List[str],
-        connection: Optional[psycopg.AsyncConnection] = None,
+        connection: Optional[DictConnection] = None,
     ) -> None:
         """Records the exact relationships asserted by a chunk."""
         if not edge_ids:
             return
         rows = [(str(tenant_id), chunk_id, edge_id) for edge_id in set(edge_ids)]
 
-        async def _run(conn: psycopg.AsyncConnection):
+        async def _run(conn: DictConnection):
             async with conn.cursor() as cur:
                 await cur.executemany(
                     f"""
@@ -2408,7 +2425,9 @@ class SecureGraphStore:
                                 json.dumps(row["metadata"] or {}),
                             ),
                         )
-                        surviving_edge_id = (await cur.fetchone())["id"]
+                        surviving_edge_row = await cur.fetchone()
+                        assert surviving_edge_row is not None  # INSERT ... RETURNING always returns exactly one row
+                        surviving_edge_id = surviving_edge_row["id"]
                         # edge_mentions.recompute_edge_support fires on
                         # INSERT/DELETE, not UPDATE, so repointing edge_id
                         # here doesn't trigger it automatically — the

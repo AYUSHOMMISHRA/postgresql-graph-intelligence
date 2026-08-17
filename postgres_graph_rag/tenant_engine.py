@@ -13,7 +13,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, cast
 
 import psycopg
 
@@ -1043,7 +1043,13 @@ class TenantGraphRAG:
         self, question: str, namespace: str, correlation_id: str, **overrides: Any
     ) -> TenantRetrievalResult:
         tid_str = str(self.tenant_id)
-        cfg: RetrievalConfig = {**self._retrieval_config, **overrides}
+        # `overrides` is `**kwargs: Any`, so mypy can't statically verify it
+        # only contains RetrievalConfig's own keys the way it can for a
+        # literal dict -- the cast documents that callers are responsible
+        # for passing valid RetrievalConfig overrides (as they already do;
+        # this is a type-checking limitation of `**` expansion from `Any`
+        # kwargs into a TypedDict, not a runtime behavior change).
+        cfg = cast(RetrievalConfig, {**self._retrieval_config, **overrides})
         mode = cfg.get("mode", "hybrid_graph")
         if mode not in {"vector", "hybrid", "hybrid_graph"}:
             raise ValueError("mode must be 'vector', 'hybrid', or 'hybrid_graph'")
@@ -1317,6 +1323,30 @@ class TenantGraphRAG:
                 abstain_reason="missing_query_anchor",
                 grounding_mode=mode, grounding_status="abstained",
             )
+        # traverse_graph() has already computed any multi-hop relationship
+        # deterministically in SQL by this point (see retrieve()) -- without
+        # surfacing it here, the model only ever sees raw chunk prose and has
+        # to re-derive a multi-hop chain itself from unstructured text.
+        # Verified against a real end-to-end run (Gemini, gemini-3.1-flash-lite):
+        # the model abstained with "Insufficient evidence" even though both
+        # facts needed for a two-hop answer were present verbatim in the
+        # chunk evidence, because it never attempted the chain. Surfacing the
+        # already-resolved relationship turns "re-derive this from prose"
+        # into "read this fact" at no extra retrieval cost, since this data
+        # was already fetched regardless of whether it's used here. This is
+        # advisory context only -- citation validation below still requires
+        # a real `[source#n]` marker from `retrieval.chunks`, so this cannot
+        # be used to fabricate a citation to something not actually retrieved.
+        if retrieval.edges:
+            relationships = "\n".join(
+                f"- {e.source_content} --[{e.relation}]--> {e.target_content}"
+                for e in retrieval.edges
+            )
+            evidence += (
+                "\n\nKnown relationships (already extracted from the evidence "
+                "above; use them to connect multi-hop facts, but still cite the "
+                "passage marker for every sentence you write):\n" + relationships
+            )
         prompt = (
             "Answer the question using only the evidence below. Every factual "
             "sentence must end with one or more citation markers exactly as shown. "
@@ -1347,6 +1377,13 @@ class TenantGraphRAG:
             invalid = [marker for marker in markers if marker not in allowed]
             abstained = generated == abstain_text
             grounded = bool(markers) and not invalid and not abstained
+            # Explicitly annotated here (this function's first assignment
+            # of the name): a bare string-literal assignment with no
+            # declared type infers as plain `str`, which would silently
+            # widen every later branch in this function -- including
+            # evaluate_policy()'s already-correctly-typed GroundingStatus
+            # return further down -- to `str`.
+            grounding_status: GroundingStatus
             if grounded:
                 abstain_reason = None
                 grounding_status = "citation_valid_only"

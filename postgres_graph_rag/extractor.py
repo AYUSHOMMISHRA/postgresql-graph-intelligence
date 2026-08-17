@@ -1,5 +1,5 @@
 import contextvars
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, cast, overload
 from pydantic import BaseModel, Field
 import openai
 from google import genai
@@ -95,13 +95,17 @@ class LLMExtractor:
         config: ProviderConfig,
         openai_api_key: Optional[str] = None,
         google_api_key: Optional[str] = None,
+        openai_base_url: Optional[str] = None,
     ):
         self.config = config
         self.openai_client = None
         self.google_client = None
 
         if openai_api_key:
-            self.openai_client = openai.AsyncOpenAI(api_key=openai_api_key)
+            self.openai_client = openai.AsyncOpenAI(
+                api_key=openai_api_key,
+                base_url=openai_base_url,
+            )
         if google_api_key:
             # Use the .aio attribute for async operations
             self.google_client = genai.Client(api_key=google_api_key).aio
@@ -129,9 +133,10 @@ class LLMExtractor:
         )
 
         model = self.config["extraction_model"]
-        if "gpt" in model and self.openai_client:
+        api_family = self.config.get("api_family")
+        if (api_family == "openai" or (api_family is None and "gpt" in model)) and self.openai_client:
             return await self._extract_openai(text, prompt)
-        elif "gemini" in model and self.google_client:
+        elif (api_family == "google" or (api_family is None and "gemini" in model)) and self.google_client:
             return await self._extract_google(text, prompt)
         else:
             raise ValueError(f"Model {model} not supported or API key missing.")
@@ -157,6 +162,10 @@ class LLMExtractor:
         })
 
     async def _extract_openai(self, text: str, prompt: str) -> List[Triplet]:
+        # extract_triplets() only calls this after checking self.openai_client
+        # is truthy; asserted here so this method's body can treat it as
+        # plainly non-Optional.
+        assert self.openai_client is not None
         completion = await self.openai_client.beta.chat.completions.parse(
             model=self.config["extraction_model"],
             messages=[
@@ -166,9 +175,22 @@ class LLMExtractor:
             response_format=ExtractionResult,
         )
         self._set_openai_usage(completion.usage)
-        return completion.choices[0].message.parsed.triplets
+        message = completion.choices[0].message
+        # OpenAI's structured-output API can refuse (message.refusal set,
+        # message.parsed left None) the same way Gemini's own refusal path
+        # already handles explicitly below -- surfaced the same way here
+        # instead of falling through to an opaque AttributeError on
+        # `None.triplets`, which is what happened here before this fix.
+        if message.refusal:
+            raise ExtractionRefusedError(f"OpenAI refused the extraction request: {message.refusal}")
+        if message.parsed is None:
+            raise ExtractionRefusedError(
+                "OpenAI returned no parsed structured output (schema-conforming JSON missing)."
+            )
+        return message.parsed.triplets
 
     async def _extract_google(self, text: str, prompt: str) -> List[Triplet]:
+        assert self.google_client is not None
         response = await self.google_client.models.generate_content(
             model=self.config["extraction_model"],
             contents=[prompt, text],
@@ -206,7 +228,13 @@ class LLMExtractor:
                 "(schema-conforming JSON missing)."
             )
 
-        return response.parsed.triplets
+        # The Gemini SDK types `.parsed` broadly (it can hold a plain dict
+        # or an Enum depending on the requested schema shape), but this call
+        # always passes response_schema=ExtractionResult, so a genuinely
+        # non-empty `.parsed` here is always that Pydantic model -- the
+        # explicit truthiness check just above already positively confirmed
+        # it isn't None.
+        return cast(ExtractionResult, response.parsed).triplets
 
     async def verify_claims(self, claims_prompt: str) -> List[ModelVerdict]:
         """Runs one batched entailment-verification call covering every
@@ -219,14 +247,16 @@ class LLMExtractor:
         structured output, exactly like extract_triplets()'s split of
         responsibility."""
         model = self.config["extraction_model"]
-        if "gpt" in model and self.openai_client:
+        api_family = self.config.get("api_family")
+        if (api_family == "openai" or (api_family is None and "gpt" in model)) and self.openai_client:
             return await self._verify_openai(claims_prompt)
-        elif "gemini" in model and self.google_client:
+        elif (api_family == "google" or (api_family is None and "gemini" in model)) and self.google_client:
             return await self._verify_google(claims_prompt)
         else:
             raise ValueError(f"Model {model} not supported or API key missing.")
 
     async def _verify_openai(self, claims_prompt: str) -> List[ModelVerdict]:
+        assert self.openai_client is not None
         completion = await self.openai_client.beta.chat.completions.parse(
             model=self.config["extraction_model"],
             messages=[
@@ -236,9 +266,17 @@ class LLMExtractor:
             response_format=VerificationBatchResult,
         )
         self._set_openai_usage(completion.usage)
-        return completion.choices[0].message.parsed.verdicts
+        message = completion.choices[0].message
+        if message.refusal:
+            raise ExtractionRefusedError(f"OpenAI refused the verification request: {message.refusal}")
+        if message.parsed is None:
+            raise ExtractionRefusedError(
+                "OpenAI returned no parsed structured verification output (schema-conforming JSON missing)."
+            )
+        return message.parsed.verdicts
 
     async def _verify_google(self, claims_prompt: str) -> List[ModelVerdict]:
+        assert self.google_client is not None
         response = await self.google_client.models.generate_content(
             model=self.config["extraction_model"],
             contents=[_VERIFICATION_SYSTEM_PROMPT, claims_prompt],
@@ -265,7 +303,8 @@ class LLMExtractor:
             raise ExtractionRefusedError(
                 "Gemini finished cleanly but produced no parsed structured verification output."
             )
-        return response.parsed.verdicts
+        # Same reasoning as _extract_google's cast() above.
+        return cast(VerificationBatchResult, response.parsed).verdicts
 
     async def generate_text(self, prompt: str, max_tokens: int = 500) -> str:
         """Plain text completion, reusing the same extraction_model/clients
@@ -273,8 +312,13 @@ class LLMExtractor:
         which needs free-text generation rather than structured triplet
         extraction."""
         model = self.config["extraction_model"]
-        if "gpt" in model and self.openai_client:
-            request = {
+        api_family = self.config.get("api_family")
+        if (api_family == "openai" or (api_family is None and "gpt" in model)) and self.openai_client:
+            # Explicitly Dict[str, Any]: inferring the type from the literal
+            # below (str keys, a str and a list value) would fix the value
+            # type too narrowly to also accept the int `max_tokens`/
+            # `max_completion_tokens` added just below.
+            request: Dict[str, Any] = {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
             }
@@ -288,7 +332,7 @@ class LLMExtractor:
             completion = await self.openai_client.chat.completions.create(**request)
             self._set_openai_usage(completion.usage)
             return completion.choices[0].message.content or ""
-        elif "gemini" in model and self.google_client:
+        elif (api_family == "google" or (api_family is None and "gemini" in model)) and self.google_client:
             response = await self.google_client.models.generate_content(
                 model=model,
                 contents=[prompt],
@@ -298,6 +342,11 @@ class LLMExtractor:
             return response.text or ""
         raise ValueError(f"Model {model} not supported or API key missing.")
 
+    @overload
+    async def get_embedding(self, text: str) -> List[float]: ...
+    @overload
+    async def get_embedding(self, text: List[str]) -> List[List[float]]: ...
+
     async def get_embedding(
         self, text: str | List[str]
     ) -> List[float] | List[List[float]]:
@@ -305,12 +354,26 @@ class LLMExtractor:
         Retrieves embeddings for one or more texts.
         Returns a single list of floats if a single string is provided,
         or a list of lists if a list of strings is provided.
+
+        The two @overload stubs above let call sites that pass a plain
+        `str` get back a plainly-typed `List[float]` (not the full union),
+        matching what every real call site already assumed at runtime --
+        confirmed by the several `List[float] | List[List[float]]` call
+        sites this closed across mcp_server.py/tenant_engine.py.
         """
         model = self.config["embedding_model"]
+        # Narrowed via a direct isinstance check (not a separately-stored
+        # bool) so mypy can actually narrow `text` in each branch --
+        # `text if is_list else [text]` with `is_list` as its own variable
+        # doesn't narrow, and previously widened input_texts's inferred
+        # type to a union including List[str | List[str]].
         is_list = isinstance(text, list)
-        input_texts = text if is_list else [text]
+        input_texts: List[str] = text if isinstance(text, list) else [text]
 
-        if self.openai_client and "text-embedding" in model:
+        api_family = self.config.get("api_family")
+        if self.openai_client and (
+            api_family == "openai" or (api_family is None and "text-embedding" in model)
+        ):
             # We use a separate variable to help the type checker
             openai_resp = await self.openai_client.embeddings.create(
                 input=input_texts, model=model
@@ -320,7 +383,8 @@ class LLMExtractor:
             return embeddings if is_list else embeddings[0]
 
         elif self.google_client and (
-            "text-embedding" in model or "embedding" in model
+            api_family == "google"
+            or (api_family is None and ("text-embedding" in model or "embedding" in model))
         ):
             # We use a separate variable to help the type checker
             google_resp = await self.google_client.models.embed_content(
@@ -331,7 +395,8 @@ class LLMExtractor:
             # this is a real provider/SDK limitation, not something skipped.
             _last_usage_var.set(None)
             # Google's embed_content returns an object with an 'embeddings' list
-            embeddings = [e.values for e in google_resp.embeddings]
+            assert google_resp.embeddings is not None, "embed_content() should always return embeddings on success"
+            embeddings = [e.values or [] for e in google_resp.embeddings]
             return embeddings if is_list else embeddings[0]
 
         raise ValueError("API key missing or provider mismatch for embeddings.")
