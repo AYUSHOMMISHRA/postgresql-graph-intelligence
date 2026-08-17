@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Postgres GraphRAG — Demo Studio</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; color: #12181f; }
+    h1 { font-size: 1.4rem; margin-bottom: .2rem; }
+    .sub { color: #52626f; margin-top: 0; }
+    fieldset { border: 1px solid #d7e1e8; border-radius: 8px; margin-bottom: 1.2rem; padding: 1rem 1.2rem; }
+    legend { font-weight: 600; padding: 0 .4rem; }
+    label { display: block; margin: .6rem 0 .25rem; font-size: .88rem; color: #333; }
+    textarea, input[type=text], select { width: 100%; box-sizing: border-box; padding: .5rem; font-family: inherit; font-size: .92rem; border: 1px solid #ccc; border-radius: 4px; }
+    textarea { min-height: 5rem; }
+    button { background: #175d8c; color: #fff; border: none; padding: .55rem 1.1rem; border-radius: 4px; font-size: .92rem; cursor: pointer; margin-top: .7rem; margin-right: .5rem; }
+    button.secondary { background: #52626f; }
+    .status { background: #e3eef5; border-radius: 6px; padding: .7rem 1rem; font-size: .88rem; margin-bottom: 1rem; }
+    .error { background: #fbeae8; color: #a5372f; border-radius: 6px; padding: .7rem 1rem; margin-bottom: 1rem; }
+    .warning { background: #fbf0dc; color: #92590a; border-radius: 6px; padding: .6rem 1rem; margin-bottom: .6rem; font-size: .86rem; }
+    .result { background: #f3f6f8; border-radius: 8px; padding: 1rem 1.2rem; margin-top: 1rem; }
+    .result h3 { margin-top: 0; font-size: 1rem; }
+    pre { white-space: pre-wrap; font-size: .85rem; background: #fff; padding: .6rem; border-radius: 4px; border: 1px solid #e0e6ea; }
+    .compare-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    code { background: #e9eff3; padding: .1em .3em; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>Postgres GraphRAG — Demo Studio</h1>
+  <p class="sub">Paste your own document text, ask a question, and compare retrieval modes — no terminal, no credentials shown.</p>
+  <p class="sub">One session per <em>browser</em> (shared across tabs of the same browser, not one per tab). This Studio process is fixed to one provider: <strong>{{ provider_label }}</strong>.</p>
+
+  {% if not runtime_configured %}
+  <div class="error">PGR_RUNTIME_URL is not configured on the server. Ask whoever started this studio to set it before continuing.</div>
+  {% endif %}
+
+  {% if session.error %}
+  <div class="error">{{ session.error }}</div>
+  {% endif %}
+
+  <div class="status">
+    Session: <code>{{ session.namespace or "no document yet" }}</code>
+    &middot; documents added: {{ session.source_ids|length }}
+    {% if session.provider %} &middot; provider: {{ session.provider }}{% endif %}
+  </div>
+
+  {% for warning in session.warnings %}
+  <div class="warning">{{ warning }}</div>
+  {% endfor %}
+
+  <form method="post" action="/ingest" enctype="multipart/form-data">
+    <fieldset>
+      <legend>1. Add a document</legend>
+      <label for="text">Paste text</label>
+      <textarea id="text" name="text" placeholder="e.g. Checkout depends_on Auth."></textarea>
+      <label for="file">...or upload a .txt/.md file</label>
+      <input id="file" type="file" name="file" accept=".txt,.md">
+      <label for="triplets_json">Offline mode only — explicit relationships (optional)</label>
+      <input id="triplets_json" type="text" name="triplets_json"
+             placeholder='{"triplets": [{"subject":"Checkout","predicate":"depends_on","object":"Auth"}]}'>
+      <button type="submit">Add document</button>
+    </fieldset>
+  </form>
+
+  <form method="post" action="/ask">
+    <fieldset>
+      <legend>2. Ask a question</legend>
+      <label for="question">Question</label>
+      <input id="question" type="text" name="question" required placeholder="What does Checkout depend on?">
+      <label for="mode">Retrieval mode</label>
+      <select id="mode" name="mode">
+        <option value="vector">Vector</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="hybrid_graph" selected>Hybrid + Graph</option>
+      </select>
+      <button type="submit" {% if not has_document %}disabled{% endif %}>Ask</button>
+    </fieldset>
+  </form>
+
+  <form method="post" action="/compare">
+    <fieldset>
+      <legend>3. Compare all three modes — free (retrieval only, no answer generated)</legend>
+      <label for="compare_question">Question</label>
+      <input id="compare_question" type="text" name="question" required placeholder="Same question, all three modes side by side">
+      <button type="submit" {% if not has_document %}disabled{% endif %}>Compare modes (free)</button>
+    </fieldset>
+  </form>
+
+  <form method="post" action="/compare-answers">
+    <fieldset>
+      <legend>3b. Generate all three answers — costs 3 provider calls with a live provider</legend>
+      <label for="compare_answers_question">Question</label>
+      <input id="compare_answers_question" type="text" name="question" required placeholder="Only use this if you explicitly want 3 generated answers">
+      <button type="submit" class="secondary" {% if not has_document %}disabled{% endif %}>Generate all three answers (uses 3x API calls)</button>
+    </fieldset>
+  </form>
+
+  <form method="post" action="/clear">
+    <button type="submit" class="secondary">Remove session documents</button>
+  </form>
+  <p class="sub" style="font-size:.82rem">"Remove session documents" deletes the documents, their chunks, and their mentions. Per the engine's existing, documented behavior, fully-orphaned graph entities are not swept — this does not guarantee every graph artifact is physically removed.</p>
+
+  {% if session.last_result %}
+  {% set r = session.last_result %}
+  <div class="result">
+    <h3>Answer — {{ r.mode }}</h3>
+    <pre>{{ r.answer }}</pre>
+    {% if r.grounding_status %}<p><strong>Grounding:</strong> {{ r.grounding_status }}</p>{% endif %}
+    {% if r.citations %}<p><strong>Citations:</strong> {{ r.citations|map(attribute="source_id")|join(", ") }}</p>{% endif %}
+    {% if r.graph_path %}<p><strong>Traversal-selected relationships:</strong> {{ r.graph_path }}</p>{% endif %}
+    <details><summary>Retrieved evidence</summary><pre>{{ r.retrieval_context }}</pre></details>
+  </div>
+  {% endif %}
+
+  {% if session.last_compare %}
+  <div class="result">
+    <h3>Mode comparison</h3>
+    <div class="compare-grid">
+      {% for mode, r in session.last_compare.items() %}
+      <div>
+        <h4>{{ mode }}</h4>
+        {% if r.grounded is none %}
+        <p class="warning">No answer generated for this mode — retrieval evidence only.</p>
+        {% else %}
+        <pre>{{ r.answer }}</pre>
+        {% endif %}
+        {% if r.grounding_status %}<p><strong>Grounding:</strong> {{ r.grounding_status }}</p>{% endif %}
+        {% if r.graph_path %}<p><strong>Traversal-selected relationships:</strong> {{ r.graph_path }}</p>{% endif %}
+        <p class="sub" style="font-size:.8rem">Retrieval latency: {{ "%.1f"|format(r.latency_ms) }} ms</p>
+        <details><summary>Retrieved evidence</summary><pre>{{ r.retrieval_context }}</pre></details>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</body>
+</html>

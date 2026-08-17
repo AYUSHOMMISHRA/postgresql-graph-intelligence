@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-graph-rag-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: graph_rag
+    ports:
+      - "5432:5432"
+    volumes:
+      - graph_rag_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d graph_rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  graph_rag_pgdata:

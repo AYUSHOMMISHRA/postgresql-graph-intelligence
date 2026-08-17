@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Grounding benchmark case",
+  "description": "One evaluation unit: a claim, the citation(s) attached to it, the evidence pool it was checked against, and the ground-truth label a reviewer assigned. This is the unit the current citation-marker validator and any future entailment verifier are both measured against -- see LABELING.md for how `label` is assigned and README.md for how the runner computes metrics from it.",
+  "type": "object",
+  "required": [
+    "id", "category", "split", "claim", "asserted_citation_ids",
+    "retrieved_evidence", "label"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable identifier, e.g. 'reversed-relationship-003'. Never renumber or reuse once a case has shipped in the sealed split -- that would silently invalidate any previously-recorded sealed-set result."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "explicit_supported_relationship",
+        "valid_but_irrelevant_citation",
+        "reversed_relationship",
+        "same_entities_different_predicate",
+        "conflicting_documents",
+        "unsupported_number_or_date",
+        "unsupported_causal_statement",
+        "multi_source_supported_claim",
+        "multi_source_partially_supported_claim",
+        "evidence_requiring_two_hops",
+        "superseded_document_evidence",
+        "pending_or_partial_extraction",
+        "correct_abstention",
+        "incorrect_abstention_pressure"
+      ]
+    },
+    "split": {
+      "type": "string",
+      "enum": ["dev", "calibration", "sealed"],
+      "description": "dev: free to inspect while iterating on a verifier. calibration: for threshold-tuning only, inspect sparingly. sealed: frozen once labeled; never used to tune prompts, thresholds, or model choice -- only to report a final number."
+    },
+    "question": {
+      "type": "string",
+      "description": "The question the claim purports to answer. Optional context, not itself checked."
+    },
+    "claim": {
+      "type": "string",
+      "description": "One atomic factual sentence, as a model would produce it in a cited answer."
+    },
+    "asserted_citation_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Citation markers the model attached to `claim`, formatted 'source_id#ordinal' -- the same format tenant_engine.py's _citation_marker() produces. May reference an id/ordinal pair absent from retrieved_evidence, to exercise the invalid-citation path; may be empty, to exercise the no-citation abstention path."
+    },
+    "retrieved_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "ordinal", "content"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "ordinal": {"type": "integer"},
+          "content": {"type": "string"}
+        }
+      },
+      "description": "The full evidence pool a citation marker is checked against for this case -- i.e. what retrieval actually returned, not just the chunk(s) the claim happens to cite. An empty list represents the no-evidence-retrieved abstention path."
+    },
+    "supporting_quotes": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Exact substrings of some retrieved_evidence[*].content that entail the claim. Required (non-empty) when label == 'supported'; empty for 'contradicted' and 'insufficient'."
+    },
+    "label": {
+      "type": "string",
+      "enum": ["supported", "contradicted", "insufficient"],
+      "description": "Ground truth: does the cited evidence actually entail the claim? 'contradicted' = cited evidence exists but asserts the opposite or a different fact about the same entities. 'insufficient' = cited evidence doesn't address the claim at all (including: citation invalid/missing, evidence irrelevant, evidence superseded/incomplete)."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Why this case is in the benchmark -- what specific failure mode it targets. Not used by the runner; for human reviewers and future maintainers."
+    }
+  }
+}
